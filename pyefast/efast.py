@@ -141,6 +141,7 @@ def fusion(
         return
     with rasterio.open(lr_paths[0]) as src:
         lr_profile = src.profile
+        bands = src.count
     if lr_window is not None:
         lr_profile.update(
             {
@@ -152,7 +153,7 @@ def fusion(
             }
         )
 
-    lr_values = np.zeros((len(t_s3), 1, lr_profile["height"], lr_profile["width"]))
+    lr_values = np.zeros((len(t_s3), bands, lr_profile["height"], lr_profile["width"]))
 
     # Read distance-to-cloud scores for high-resolution images
     distance_to_cloud = np.zeros((len(t_s2), lr_profile["height"], lr_profile["width"]))
@@ -208,23 +209,12 @@ def fusion(
     n_selected = np.sum(hr_selected)
 
     # Initialize the mosaic rasters
-    # TODO: check is should be lr_values.shape[1]
-    '''
     hr_m = np.zeros(
         (lr_values.shape[1], lr_profile["height"] * ratio, lr_profile["width"] * ratio),
         lr_profile["dtype"],
     )
     lr_m = np.zeros(
         (lr_values.shape[1], lr_profile["height"] * ratio, lr_profile["width"] * ratio),
-        lr_profile["dtype"],
-    )
-    '''
-    hr_m = np.zeros(
-        (lr_values.shape[0], lr_profile["height"] * ratio, lr_profile["width"] * ratio),
-        lr_profile["dtype"],
-    )
-    lr_m = np.zeros(
-        (lr_values.shape[0], lr_profile["height"] * ratio, lr_profile["width"] * ratio),
         lr_profile["dtype"],
     )
     wu = np.zeros((1, lr_profile["height"] * ratio, lr_profile["width"] * ratio))
