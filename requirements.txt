@@ -1,0 +1,11 @@
+setuptools
+numpy
+scipy
+tqdm
+scikit-learn
+rasterio
+pandas
+ipdb
+astropy
+python-dateutil
+git+https://github.com/DHI-GRAS/snap-graph
