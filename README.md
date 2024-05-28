@@ -37,11 +37,7 @@ as demonstrated by the example of Aarhus, Denmark in Spring 2021.
 
 ### How to Use EFAST
 
-To use EFAST, follow these steps:
-
-1. Open the fusion.py file.
-2. Modify the path variable to specify your local path.
-3. Enter your desired parameters, such as the Sentinel-2 tile number (tile_num), start date (start_date), and end date (end_date).
+See run_efast.py for an example using data located in test_data folder.
 
 ### Requirements
 
