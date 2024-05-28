@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Earth_Explorer_File xmlns="http://gs2.esa.int/DATA_STRUCTURE/olqcReport">
+    <Earth_Explorer_Header>
+        <Fixed_Header>
+            <File_Name>FORMAT_CORRECTNESS.xml</File_Name>
+            <File_Description>Report produced by OLQC-SC</File_Description>
+            <Notes></Notes>
+            <Mission>S2B</Mission>
+            <File_Class>OPER</File_Class>
+            <File_Type>REP_OLQCPA</File_Type>
+            <Validity_Period>
+                <Validity_Start>UTC=2022-08-30T00:25:00</Validity_Start>
+                <Validity_Stop>UTC=2100-01-01T00:00:00</Validity_Stop>
+            </Validity_Period>
+            <File_Version>2</File_Version>
+            <Source>
+                <System>OLQC-SC</System>
+                <Creator>OLQC-SC</Creator>
+                <Creator_Version>06.01.00</Creator_Version>
+                <Creation_Date>UTC=2023-09-16T14:10:08</Creation_Date>
+            </Source>
+        </Fixed_Header>
+    </Earth_Explorer_Header>
+    <Data_Block type="xml">
+        <report gippVersion="1.0" globalStatus="PASSED" date="2023-09-16T14:10:08.744Z">
+            <checkList>
+                <parentID>S2B_OPER_GIP_OLQCPA_MPC__20220715T000042_V20220830T002500</parentID>
+                <name>FORMAT_CORRECTNESS</name>
+                <version>1.0</version>
+                <item url="/mnt/local/l2ads/work/79e3b757-6acc-4595-9e5e-a20f0fa21c33/work/tmp_l2_ds_20230916140953/work/Sen2Core_tmp_ds_20230916140954/DS/S2B_OPER_MSI_L2A_DS_2BPS_20230916T140957_S20230916T113227_N05.09/" className="PDI Level 2A Datastrip Folder" name="S2B_OPER_MSI_L2A_DS_2BPS_20230916T140957_S20230916T113227_N05.09" class="http://www.esa.int/s2#pdi_level_2a_datastrip_container"/>
+                <check>
+                    <inspection creation="2023-09-16T14:10:07.406Z" duration="1324" execution="2023-09-16T14:10:07.416Z" id="schemaXmlValidator" item="MTD_DS.xml" itemURL="/mnt/local/l2ads/work/79e3b757-6acc-4595-9e5e-a20f0fa21c33/work/tmp_l2_ds_20230916140953/work/Sen2Core_tmp_ds_20230916140954/DS/S2B_OPER_MSI_L2A_DS_2BPS_20230916T140957_S20230916T113227_N05.09/MTD_DS.xml" name="Schema Validator. " priority="5" processingStatus="done" status="PASSED"/>
+                    <message contentType="text/plain">The schema validation passed successfully.</message>
+                </check>
+                <check>
+                    <inspection creation="2023-09-16T14:10:08.791Z" duration="0" execution="2023-09-16T14:10:08.803Z" id="Start_Stop_Time" item="MTD_DS.xml" itemURL="/mnt/local/l2ads/work/79e3b757-6acc-4595-9e5e-a20f0fa21c33/work/tmp_l2_ds_20230916140953/work/Sen2Core_tmp_ds_20230916140954/DS/S2B_OPER_MSI_L2A_DS_2BPS_20230916T140957_S20230916T113227_N05.09/MTD_DS.xml" name="Check start/stop time validity. " priority="5" processingStatus="done" status="PASSED"/>
+                    <message contentType="text/plain">Sensing period is valid. </message>
+                    <extraValues>
+                        <value name="SENSING_START">2023-09-16T11:32:27.503Z</value>
+                        <value name="SENSING_STOP">2023-09-16T11:38:57.142Z</value>
+                    </extraValues>
+                </check>
+                <check>
+                    <inspection creation="2023-09-16T14:10:09.785Z" duration="314" execution="2023-09-16T14:10:09.798Z" id="checkMetadata" item="S2B_OPER_MSI_L2A_DS_2BPS_20230916T140957_S20230916T113227_N05.09" itemURL="/mnt/local/l2ads/work/79e3b757-6acc-4595-9e5e-a20f0fa21c33/work/tmp_l2_ds_20230916140953/work/Sen2Core_tmp_ds_20230916140954/DS/S2B_OPER_MSI_L2A_DS_2BPS_20230916T140957_S20230916T113227_N05.09/" name="Metadata file check. " priority="5" processingStatus="done" status="PASSED"/>
+                    <message contentType="text/plain">Metadata file is present.</message>
+                </check>
+            </checkList>
+        </report>
+    </Data_Block>
+</Earth_Explorer_File>
