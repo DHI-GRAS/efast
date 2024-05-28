@@ -30,9 +30,7 @@ def binning_s3(
     instrument="OL",
     max_zenith_angle=30,
     crs="EPSG:4326",
-    step=1,
     aggregator="mean",
-    mosaic_days=1,
     snap_gpt_path="gpt",
     snap_memory="8G",
     snap_parallelization=1,
@@ -57,13 +55,8 @@ def binning_s3(
     footprint : geometry
          Area of interest as well-known text string, the Sentinel-3 acquisitions will be cropped to
          this area
-    step : int
-        Number of days between two center dates of composites (if step = mosaic_days, there is no
-        overlap)
     aggregator: str
         'mean' or 'median'
-    mosaic_days : int
-        Number of days to consider to make one single composite
     snap_gpt_path : str
         path to SNAP's gpt.exe
     snap_memory : str
@@ -86,42 +79,20 @@ def binning_s3(
     sen3_paths = [element for _, element in sorted(zip(date_strings, sen3_paths))]
     dates_dt = pd.to_datetime(sorted(date_strings))
 
-    for middle_date in rrule.rrule(
-        rrule.DAILY,
-        dtstart=dates_dt[0] + timedelta(days=mosaic_days // 2),
-        until=dates_dt[-1] - timedelta(days=mosaic_days // 2),
-        interval=1,
-    ):
-        # TODO: step should always equal 1 and mosaic_days should always equal 1. Remove them as
-        # function variables and check if indices still serves any purpose afterwards.
-        indices = list(
-            np.argwhere(
-                np.abs((dates_dt - middle_date).days) <= mosaic_days / 2
-            ).flatten()
-        )
-        composites_paths = []
-
-        if len(indices) == 0:
-            continue
+    for i, sen3_path in enumerate(sen3_paths):
 
         output_path = os.path.join(
             binning_dir,
-            f'composite_{dates_dt[indices[0]].strftime("%Y-%m-%d")}_'
-            f'{dates_dt[indices[-1]].strftime("%Y-%m-%d")}.tif',
+            f'composite_{dates_dt[i].strftime("%Y-%m-%d")}.tif',
         )
-        composites_paths.append(output_path)
 
         variables = s3_bands.copy()
         # Special case - FAPAR name changed from OGVI to GIFAPAR
         for i, variable in enumerate(s3_bands):
             if variable == "FAPAR":
-                if "ogvi.nc" in os.listdir(
-                    sen3_paths[indices[0]]
-                ) and "ogvi.nc" in os.listdir(sen3_paths[indices[-1]]):
+                if "ogvi.nc" in os.listdir(sen3_path):
                     variables[i] = "OGVI"
-                elif "gifapar.nc" in os.listdir(
-                    sen3_paths[indices[0]]
-                ) and "gifapar.nc" in os.listdir(sen3_paths[indices[-1]]):
+                elif "gifapar.nc" in os.listdir(sen3_path):
                     variables[i] = "GIFAPAR"
                 else:
                     continue
@@ -171,9 +142,8 @@ def binning_s3(
 
         graph = SnapGraph()
         input_node_ids = []
-        for sen3_path in sen3_paths[indices[0]:indices[-1] + 1]:
-            read_node_id = graph.read_op(str(sen3_path))  # read
-            input_node_ids.append(graph.reproject_op(read_node_id, crs))  # reproject
+        read_node_id = graph.read_op(str(sen3_path))  # read
+        input_node_ids.append(graph.reproject_op(read_node_id, crs))  # reproject
         binning_node_id = graph.binning_op(
             source_product_list=input_node_ids,
             aggregator_list=binning_aggregator_list,
