@@ -36,7 +36,7 @@ def main(
         s3_bands: list,
         s2_bands: list,
         mosaic_days: int,
-        step: int = 5,
+        step: int,
 ):
 
     # Transform parameters
@@ -119,6 +119,7 @@ def main(
             fusion_dir,
             product="REFL",
             max_days=100,
+            minimum_acquisition_importance=0
         )
 
 
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--s3-bands", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"])
     parser.add_argument("--s2-bands", default=["B02", "B03", "B04", "B8A"])
     parser.add_argument("--mosaic-days", default=100)
-    parser.add_argument("--step", required=False, default=5)
+    parser.add_argument("--step", required=False, default=2)
 
     args = parser.parse_args()
 
