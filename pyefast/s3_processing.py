@@ -6,8 +6,9 @@ Created on Fri May 24 09:17:41 2024
 """
 
 from dateutil import rrule
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
+import re
 from tqdm import tqdm
 
 import astropy.convolution as ap
@@ -77,13 +78,12 @@ def binning_s3(
         [os.path.split(sen3_path)[-1].split("____")[1][:8] for sen3_path in sen3_paths]
     )
     sen3_paths = [element for _, element in sorted(zip(date_strings, sen3_paths))]
-    dates_dt = pd.to_datetime(sorted(date_strings))
 
     for i, sen3_path in enumerate(sen3_paths):
 
         output_path = os.path.join(
             binning_dir,
-            f'composite_{dates_dt[i].strftime("%Y-%m-%d")}.tif',
+            sen3_path.stem+'.tif',
         )
 
         variables = s3_bands.copy()
@@ -167,7 +167,6 @@ def binning_s3(
 def produce_median_composite(
     dir_s3,
     composite_dir,
-    product="composite",
     step=5,
     mosaic_days=100,
     s3_bands=None,
@@ -183,9 +182,6 @@ def produce_median_composite(
         The directory containing the Sentinel-3 images.
     composite_dir: pathlib.Path
         The directory where the composite images will be saved.
-    product: string, optional
-        Product name, which should be in the filename and is used to select files for compositing.
-        Defaults to "composite".
     step: int, optional
         The number of days between each composite image, default is 5.
     mosaic_days: int, optional
@@ -202,17 +198,10 @@ def produce_median_composite(
     -------
     None
     """
-    sen3_paths = list(dir_s3.glob(f"*{product}*.tif"))
-    s3_dates_start = pd.to_datetime(
-        [os.path.split(sen3_path)[-1].split("_")[1] for sen3_path in sen3_paths]
+    sen3_paths = list(dir_s3.glob("S3*.tif"))
+    s3_dates = pd.to_datetime(
+        [re.match(".*__(\d{8})T.*\.tif", sen3_path.name).group(1) for sen3_path in sen3_paths]
     )
-    s3_dates_end = pd.to_datetime(
-        [
-            os.path.split(sen3_path)[-1].split("_")[2].split(".")[0]
-            for sen3_path in sen3_paths
-        ]
-    )
-    s3_dates = s3_dates_start + (s3_dates_end - s3_dates_start) / 2
     sen3_paths = np.array(
         [sen3_path for _, sen3_path in sorted(zip(s3_dates, sen3_paths))]
     )
