@@ -73,6 +73,12 @@ def fusion(
     Returns
     -------
     None
+
+    References
+    ----------
+    ..  [Senty2024] Senty, P., Guzinski, R., Grogan, K., Buitenwerf, R., Ardö, J., Eklundh, L.,
+        Koukos, A., Tagesson, T., and Munk, M. (2024). Fast Fusion of Sentinel-2 and Sentinel-3
+        Time Series over Rangelands. Remote Sensing 16, 1833. https://doi.org/10.3390/rs16111833
     """
 
     hr_suffix = product
@@ -136,6 +142,8 @@ def fusion(
             (ratio * x_min, ratio * x_max), (ratio * y_min, ratio * y_max)
         )
 
+    # --- Section 2.3 from [Senty2024] (last paragraph) ---
+
     # Read low-resolution image
     if len(lr_paths) == 0:
         return
@@ -154,12 +162,6 @@ def fusion(
         )
 
     lr_values = np.zeros((len(t_s3), bands, lr_profile["height"], lr_profile["width"]))
-
-    # Read distance-to-cloud scores for high-resolution images
-    distance_to_cloud = np.zeros((len(t_s2), lr_profile["height"], lr_profile["width"]))
-    for i, hr_path_c in enumerate(hr_paths_c):
-        with rasterio.open(hr_path_c) as src:
-            distance_to_cloud[i] = src.read(1, window=lr_window)
 
     # Prepare low-resolution rasters
     lr_i = np.nan * np.zeros(
@@ -185,6 +187,14 @@ def fusion(
                     interpolations = cs(pred_dates)
                     lr_p[band, row, col] = interpolations[0]
                     lr_i[:, band, row, col] = interpolations[1:]
+
+    # --- Section 2.5 from [Senty2024] ---
+
+    # Read distance-to-cloud scores for high-resolution images
+    distance_to_cloud = np.zeros((len(t_s2), lr_profile["height"], lr_profile["width"]))
+    for i, hr_path_c in enumerate(hr_paths_c):
+        with rasterio.open(hr_path_c) as src:
+            distance_to_cloud[i] = src.read(1, window=lr_window)
 
     # Compute the weights of each high-resolution image for every low-resolution pixel, temporal
     # times optical Gaussian (t)
@@ -244,9 +254,13 @@ def fusion(
     hr_m = hr_m / wu
     lr_m = lr_m / wu
 
-    # Fusion
+    # --- Section 2.4 from [Senty2024] ---
+
+    # Fusion, eq. (2) from [Senty2024]
     lr_p = upsample_array(lr_p, ratio=ratio)
     fusion = lr_p + hr_m - lr_m
+
+    # --- Save outputs ---
 
     with rasterio.open(hr_paths_hr[0]) as src:
         profile = src.profile

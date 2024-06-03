@@ -117,6 +117,15 @@ def distance_to_clouds(dir_s2, ratio=30, tolerance_percentage=0.05):
     Returns
     -------
     None
+
+    References
+    ----------
+    ..  [Senty2024] Senty, P., Guzinski, R., Grogan, K., Buitenwerf, R., Ardö, J., Eklundh, L.,
+        Koukos, A., Tagesson, T., and Munk, M. (2024). Fast Fusion of Sentinel-2 and Sentinel-3
+        Time Series over Rangelands. Remote Sensing 16, 1833. https://doi.org/10.3390/rs16111833
+    ..  [Griffiths2013] Griffiths, P.; van der Linden, S.; Kuemmerle, T.; Hostert, P. A Pixel-Based
+        Landsat Compositing Algorithm for Large Area Land Cover Mapping. IEEE J. Sel. Top. Appl.
+        Earth Obs. Remote Sens. 2013, 6, 2088–2101. https://doi.org/10.1109/JSTARS.2012.2228167.
     """
 
     sen2_paths = dir_s2.glob("*REFL.tif")
