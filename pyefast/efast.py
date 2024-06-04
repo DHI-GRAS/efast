@@ -30,7 +30,6 @@ def fusion(
     add_overview=False,
     extent=None,
     minimum_acquisition_importance=2,
-    error_analysis=False,
 ):
     """
     A function that combines time-series of low-resolution and high-resolution images to produce a
@@ -67,8 +66,6 @@ def fusion(
         The extent of the image to be used, by default the whole high-resolution image is used.
     minimum_acquisition_importance : float, optional
         The minimum acquisition importance to be used in the averaging process, by default 2.
-    error_analysis : bool, optional
-        If True, an error analysis will be performed, by default False.
 
     Returns
     -------
@@ -110,20 +107,9 @@ def fusion(
             for lr_date in lr_dates
         ]
     )
-    if error_analysis:
-        hr_potential_dates = np.logical_and(
-            np.array(
-                [
-                    -max_days < (hr_date - pred_date).days < max_days
-                    for hr_date in hr_dates
-                ]
-            ),
-            np.array([np.abs((hr_date - pred_date).days) > 1 for hr_date in hr_dates]),
-        )
-    else:
-        hr_potential_dates = np.array(
-            [-max_days < (hr_date - pred_date).days < max_days for hr_date in hr_dates]
-        )
+    hr_potential_dates = np.array(
+        [-max_days < (hr_date - pred_date).days < max_days for hr_date in hr_dates]
+    )
     lr_paths = lr_paths[lr_potential_dates]
     hr_paths_c = hr_paths_c[hr_potential_dates]
     hr_paths_hr = hr_paths_hr[hr_potential_dates]
