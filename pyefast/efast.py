@@ -23,10 +23,10 @@ def fusion(
     fusion_dir,
     product,
     max_days=30,
-    sigma=10,
+    sigma=20,
     ratio=30,
     date_position=2,
-    D=3,
+    D=15,
     add_overview=False,
     extent=None,
     minimum_acquisition_importance=2,
@@ -52,14 +52,14 @@ def fusion(
         The maximum number of days allowed between the acquisition dates and the predicted date
         by default 30.
     sigma : int, optional
-        The standard deviation for the temporal weights, by default 10 days.
+        The standard deviation for the temporal weights, by default 20 days.
     ratio : int, optional
         The ratio between the resolution of the high- and low-resolution images, by default 30.
     date_position : int, optional
         The position of the date in the filename of the high-resolution images, by default 2.
     D : int, optional
         The distance (in coarse pixels) beyond which a cloud has no impact on the score, by default
-        3.
+        15.
     add_overview : bool, optional
         If True, an overview image will be added, by default True.
     extent : tuple, optional
