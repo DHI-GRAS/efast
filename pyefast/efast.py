@@ -26,14 +26,14 @@ SOFTWARE.
 """
 
 import os
-from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
 import rasterio
 import rasterio.windows
-from scipy.interpolate import interp1d
 import scipy.ndimage
+from scipy.interpolate import interp1d
+from tqdm import tqdm
 
 
 def fusion(

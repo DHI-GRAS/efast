@@ -26,7 +26,6 @@ SOFTWARE.
 """
 
 import re
-from tqdm import tqdm
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -35,7 +34,7 @@ import rasterio
 import scipy as sp
 from shapely.geometry import box
 from shapely.ops import transform
-
+from tqdm import tqdm
 
 # Mapping of Sentinel-2 bands names to bands ids
 BANDS_IDS = {
@@ -52,10 +51,9 @@ BANDS_IDS = {
 }
 
 
-def extract_mask_s2_bands(input_dir,
-                          output_dir,
-                          bands=["B02", "B03", "B04", "B8A"],
-                          resolution=20):
+def extract_mask_s2_bands(
+    input_dir, output_dir, bands=["B02", "B03", "B04", "B8A"], resolution=20
+):
     """
     Extract specified Sentinel-2 bands from .SAFE file, mask clouds and shadows using the SLC mask
     and save to multi-band GeoTIFF file.
@@ -79,7 +77,8 @@ def extract_mask_s2_bands(input_dir,
     """
     for p in input_dir.iterdir():
         band_paths = [
-            list(p.glob(f"GRANULE/*/IMG_DATA/R{resolution}m/*{band}*.jp2"))[0] for band in bands
+            list(p.glob(f"GRANULE/*/IMG_DATA/R{resolution}m/*{band}*.jp2"))[0]
+            for band in bands
         ]
 
         # Find S2 BOA offsets
@@ -99,7 +98,9 @@ def extract_mask_s2_bands(input_dir,
         mask = (mask == 0) | (mask == 3) | (mask > 7)
 
         # Combine bands and mask
-        s2_image = np.zeros((len(bands), profile["height"], profile["width"]), "float32")
+        s2_image = np.zeros(
+            (len(bands), profile["height"], profile["width"]), "float32"
+        )
         for i, band_path in enumerate(band_paths):
             band = bands[i]
             band_id = BANDS_IDS.get(band)
@@ -112,7 +113,9 @@ def extract_mask_s2_bands(input_dir,
                 s2_image[i] = data
 
         # Save file
-        profile.update({"driver": "GTiff", "count": len(bands), "dtype": "float32", "nodata": 0})
+        profile.update(
+            {"driver": "GTiff", "count": len(bands), "dtype": "float32", "nodata": 0}
+        )
         out_path = output_dir / f"{str(p.name).rstrip('.SAFE')}_REFL.tif"
         with rasterio.open(out_path, "w", **profile) as dst:
             dst.write(s2_image)
@@ -170,7 +173,9 @@ def distance_to_clouds(dir_s2, ratio=30, tolerance_percentage=0.05):
         distance_to_cloud = np.clip(distance_to_cloud, 0, 255)
 
         # Update transform
-        s2_resolution = (s2_profile["transform"]*(1, 0))[0] - (s2_profile["transform"]*(0, 0))[0]
+        s2_resolution = (s2_profile["transform"] * (1, 0))[0] - (
+            s2_profile["transform"] * (0, 0)
+        )[0]
         longitude_origin, latitude_origin = s2_profile["transform"] * (0, 0)
         lr_transform = rasterio.Affine(
             ratio * s2_resolution,
@@ -226,9 +231,9 @@ def get_wkt_footprint(dir_s2, crs="EPSG:4326"):
     # Ensure footprint is in desired CRS
     polygon = box(*bounds)
     if image_crs != crs:
-        transformer = pyproj.Transformer.from_proj(pyproj.Proj(image_crs),
-                                                   pyproj.Proj(crs),
-                                                   always_xy=True)
+        transformer = pyproj.Transformer.from_proj(
+            pyproj.Proj(image_crs), pyproj.Proj(crs), always_xy=True
+        )
         polygon = transform(transformer.transform, polygon)
 
     # Step 4: Convert to WKT

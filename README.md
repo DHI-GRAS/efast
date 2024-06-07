@@ -40,22 +40,30 @@ as demonstrated by the example of Aarhus, Denmark in Spring 2021.
 See run_efast.py for an example using data located in test_data folder.
 
 ### Requirements
+* [python](https://www.python.org/getit/)
+* [esa-snap](https://step.esa.int/main/download/snap-download/)
 
-- setuptools
-- numpy
-- scipy
-- tqdm
-- scikit-learn
-- rasterio
-- pandas
-- ipdb
-- astropy
-- python-dateutil
-- snap-graph (available through a Git repository)
-
-### Installation
+### Try it out
 
 1. Clone the repository to your local machine.
 2. Navigate to the root directory of the repository in your terminal.
-3. Run the following command to install the required packages: pip install -r requirements.txt
-4. Run the following command to install the package: python setup.py install
+3. [OPTIONAL but recommended] Create a virtual environment: `python3.<your python version> -m venv venv`
+3. Install the package: `pip install -e ./`
+4. Run the example: `python run_efast.py`
+
+### Installation
+Install the package using pip:
+
+```bash
+pip install git+https://github.com/DHI-GRAS/efast.git
+```
+
+### Usage
+```python
+import pyefast
+
+...
+pyefast.fusion(
+    ...
+)
+```
