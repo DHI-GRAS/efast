@@ -137,3 +137,11 @@ zappa_settings.toml
 _version.py
 Makefile
 tests/
+
+test_data/fusion_results
+test_data/S2/processed
+test_data/S3/reprojected
+test_data/S3/composites
+test_data/S3/calibrated
+test_data/S3/binning
+test_data/S3/blurred
