@@ -41,7 +41,7 @@ See run_efast.py for an example using data located in test_data folder.
 
 ### Requirements
 * [python](https://www.python.org/getit/)
-* [esa-snap](https://step.esa.int/main/download/snap-download/) - tested with version 9 and 10
+* [esa-snap](https://step.esa.int/main/download/snap-download/) - needed for Sentinel-3 pre-processing only. Tested with version 9 and 10.
 
 ### Try it out
 
