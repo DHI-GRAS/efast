@@ -32,9 +32,9 @@ from pathlib import Path
 
 from dateutil import rrule
 
-import pyefast.efast as efast
-import pyefast.s2_processing as s2
-import pyefast.s3_processing as s3
+import efast.efast as efast
+import efast.s2_processing as s2
+import efast.s3_processing as s3
 
 # Test parameters
 path = Path("./test_data").absolute()
