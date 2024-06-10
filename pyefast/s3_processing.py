@@ -25,22 +25,23 @@ SOFTWARE.
 @author: rmgu, pase
 """
 
-from dateutil import rrule
-from datetime import datetime
 import os
 import re
-from tqdm import tqdm
+
+from datetime import datetime
 
 import astropy.convolution as ap
 import numpy as np
 import pandas as pd
 import rasterio
-from rasterio.vrt import WarpedVRT
-from rasterio.enums import Resampling
-from rasterio import shutil as rio_shutil
 import scipy as sp
 
+from dateutil import rrule
+from rasterio import shutil as rio_shutil
+from rasterio.enums import Resampling
+from rasterio.vrt import WarpedVRT
 from snap_graph.snap_graph import SnapGraph
+from tqdm import tqdm
 
 
 def binning_s3(
@@ -100,10 +101,9 @@ def binning_s3(
     sen3_paths = [element for _, element in sorted(zip(date_strings, sen3_paths))]
 
     for i, sen3_path in enumerate(sen3_paths):
-
         output_path = os.path.join(
             binning_dir,
-            sen3_path.stem+'.tif',
+            sen3_path.stem + ".tif",
         )
 
         variables = s3_bands.copy()
@@ -185,13 +185,7 @@ def binning_s3(
 
 
 def produce_median_composite(
-    dir_s3,
-    composite_dir,
-    step=5,
-    mosaic_days=100,
-    s3_bands=None,
-    D=20,
-    sigma_doy=10
+    dir_s3, composite_dir, step=5, mosaic_days=100, s3_bands=None, D=20, sigma_doy=10
 ):
     """
     Create weighted composites of Sentinel-3 images.
@@ -220,7 +214,10 @@ def produce_median_composite(
     """
     sen3_paths = list(dir_s3.glob("S3*.tif"))
     s3_dates = pd.to_datetime(
-        [re.match(".*__(\d{8})T.*\.tif", sen3_path.name).group(1) for sen3_path in sen3_paths]
+        [
+            re.match(".*__(\d{8})T.*\.tif", sen3_path.name).group(1)
+            for sen3_path in sen3_paths
+        ]
     )
     sen3_paths = np.array(
         [sen3_path for _, sen3_path in sorted(zip(s3_dates, sen3_paths))]

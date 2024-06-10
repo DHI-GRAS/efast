@@ -25,16 +25,16 @@ SOFTWARE.
 @author: rmgu, pase
 """
 
+import argparse
+
 from datetime import datetime, timedelta
 from pathlib import Path
-import argparse
+
 from dateutil import rrule
 
-# Import s3_fusion modules
-import pyefast.s3_processing as s3
-import pyefast.s2_processing as s2
 import pyefast.efast as efast
-
+import pyefast.s2_processing as s2
+import pyefast.s3_processing as s3
 
 # Test parameters
 path = Path("./test_data").absolute()
@@ -50,15 +50,15 @@ fusion_dir = path / "fusion_results"
 
 
 def main(
-        start_date: str,
-        end_date: str,
-        s3_sensor: str,
-        s3_bands: list,
-        s2_bands: list,
-        mosaic_days: int,
-        step: int,
+    start_date: str,
+    end_date: str,
+    s3_sensor: str,
+    s3_bands: list,
+    s2_bands: list,
+    mosaic_days: int,
+    step: int,
+    snap_gpt_path: str = "gpt",
 ):
-
     # Transform parameters
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -82,23 +82,25 @@ def main(
     # Sentinel-2 pre-processing
     s2.extract_mask_s2_bands(
         s2_download_dir,
-        s2_processed_dir
+        s2_processed_dir,
+        bands=s2_bands,
     )
     s2.distance_to_clouds(
-        s2_processed_dir
+        s2_processed_dir,
     )
     footprint = s2.get_wkt_footprint(
-        s2_processed_dir
+        s2_processed_dir,
     )
 
     # Sentinel-3 pre-processing
     s3.binning_s3(
         s3_download_dir,
         s3_binning_dir,
-        aggregator="mean",
+        footprint=footprint,
         s3_bands=s3_bands,
         instrument=instrument,
-        footprint=footprint,
+        aggregator="mean",
+        snap_gpt_path=snap_gpt_path,
         snap_memory="24G",
         snap_parallelization=1,
     )
@@ -113,7 +115,7 @@ def main(
         s3_composites_dir,
         s3_blured_dir,
         std=1,
-        preserve_nan=False
+        preserve_nan=False,
     )
     s3.reformat_s3(
         s3_blured_dir,
@@ -122,7 +124,7 @@ def main(
     s3.reproject_and_crop_s3(
         s3_calibrated_dir,
         s2_processed_dir,
-        s3_reprojected_dir
+        s3_reprojected_dir,
     )
 
     # Perform EFAST fusion
@@ -139,7 +141,7 @@ def main(
             fusion_dir,
             product="REFL",
             max_days=100,
-            minimum_acquisition_importance=0
+            minimum_acquisition_importance=0,
         )
 
 
@@ -148,10 +150,13 @@ if __name__ == "__main__":
     parser.add_argument("--start-date", default="2023-09-11")
     parser.add_argument("--end-date", default="2023-09-21")
     parser.add_argument("--s3-sensor", default="SYN")
-    parser.add_argument("--s3-bands", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"])
+    parser.add_argument(
+        "--s3-bands", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
+    )
     parser.add_argument("--s2-bands", default=["B02", "B03", "B04", "B8A"])
     parser.add_argument("--mosaic-days", default=100)
     parser.add_argument("--step", required=False, default=2)
+    parser.add_argument("--snap-gpt-path", required=False, default="gpt")
 
     args = parser.parse_args()
 
@@ -163,4 +168,5 @@ if __name__ == "__main__":
         s2_bands=args.s2_bands,
         step=args.step,
         mosaic_days=args.mosaic_days,
+        snap_gpt_path=args.snap_gpt_path,
     )
