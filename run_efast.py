@@ -80,9 +80,17 @@ def main(
         folder.mkdir(parents=True, exist_ok=True)
 
     # Sentinel-2 pre-processing
-    s2.extract_mask_s2_bands(s2_download_dir, s2_processed_dir, bands=s2_bands)
-    s2.distance_to_clouds(s2_processed_dir)
-    footprint = s2.get_wkt_footprint(s2_processed_dir)
+    s2.extract_mask_s2_bands(
+        s2_download_dir,
+        s2_processed_dir,
+        bands=s2_bands,
+    )
+    s2.distance_to_clouds(
+        s2_processed_dir,
+    )
+    footprint = s2.get_wkt_footprint(
+        s2_processed_dir,
+    )
 
     # Sentinel-3 pre-processing
     s3.binning_s3(
@@ -103,12 +111,21 @@ def main(
         step=step,
         s3_bands=None,
     )
-    s3.smoothing(s3_composites_dir, s3_blured_dir, std=1, preserve_nan=False)
+    s3.smoothing(
+        s3_composites_dir,
+        s3_blured_dir,
+        std=1,
+        preserve_nan=False,
+    )
     s3.reformat_s3(
         s3_blured_dir,
         s3_calibrated_dir,
     )
-    s3.reproject_and_crop_s3(s3_calibrated_dir, s2_processed_dir, s3_reprojected_dir)
+    s3.reproject_and_crop_s3(
+        s3_calibrated_dir,
+        s2_processed_dir,
+        s3_reprojected_dir,
+    )
 
     # Perform EFAST fusion
     for date in rrule.rrule(
