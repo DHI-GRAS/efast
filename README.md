@@ -47,8 +47,8 @@ See run_efast.py for an example using data located in test_data folder.
 
 1. Clone the repository to your local machine.
 2. Navigate to the root directory of the repository in your terminal.
-3. [OPTIONAL but recommended] Create a virtual environment: `python3.<your python version> -m venv venv`
-3. Install the package: `pip install -e ./`
+3. [OPTIONAL but recommended] Create a virtual environment: `python3.<your python version> -m venv .venv`
+3. Install the package: `pip install -e .`
 4. Run the example: `python run_efast.py`
 
 ### Installation
@@ -67,3 +67,9 @@ pyefast.fusion(
     ...
 )
 ```
+
+### Develop
+1. Clone the repository to your local machine.
+2. Navigate to the root directory of the repository in your terminal.
+3. [OPTIONAL but strongly recommended] Create a virtual environment: `python3.<your python version> -m venv .venv`
+3. Install the package in dev mode: `pip install -e .[dev]`

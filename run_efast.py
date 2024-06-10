@@ -26,6 +26,7 @@ SOFTWARE.
 """
 
 import argparse
+
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -150,5 +151,5 @@ if __name__ == "__main__":
         s2_bands=args.s2_bands,
         step=args.step,
         mosaic_days=args.mosaic_days,
-        snap_gpt_path=args.snap_gpt_path
+        snap_gpt_path=args.snap_gpt_path,
     )
