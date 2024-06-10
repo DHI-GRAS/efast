@@ -33,8 +33,6 @@ from dateutil import rrule
 
 import pyefast.efast as efast
 import pyefast.s2_processing as s2
-
-# Import s3_fusion modules
 import pyefast.s3_processing as s3
 
 # Test parameters
