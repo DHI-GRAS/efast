@@ -60,10 +60,10 @@ pip install git+https://github.com/DHI-GRAS/efast.git
 
 ### Usage
 ```python
-import pyefast
+import efast
 
 ...
-pyefast.fusion(
+efast.fusion(
     ...
 )
 ```
