@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyefast"
+authors = [
+    {name = "sa", email = "smth@email.com"},
+]
+description = "My package description"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "python-dateutil",
+    "numpy",
+    "pandas",
+    "rasterio",
+    "scipy",
+    "tqdm",
+    "pyproj",
+    "shapely",
+    "astropy",
+    "snap-graph @ git+https://github.com/DHI-GRAS/snap-graph",
+
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+include = ["pyefast"]
+
+[tool.ruff.lint]
+select = ["I"]
+
+[tool.ruff.lint.isort]
+# Use a single line between direct and from import.
+lines-between-types = 1
