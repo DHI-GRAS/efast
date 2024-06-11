@@ -76,7 +76,7 @@ def extract_mask_s2_bands(
     -------
     None
     """
-    for p in input_dir.iterdir():
+    for p in input_dir.glob("*.SAFE"):
         band_paths = [
             list(p.glob(f"GRANULE/*/IMG_DATA/R{resolution}m/*{band}*.jp2"))[0]
             for band in bands
