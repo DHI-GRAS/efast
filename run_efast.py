@@ -26,13 +26,13 @@ SOFTWARE.
 """
 
 import argparse
+import zipfile
 
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from creodias_finder import query, download
+from creodias_finder import download, query
 from dateutil import rrule
-import zipfile
 
 import efast.efast as efast
 import efast.s2_processing as s2
