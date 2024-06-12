@@ -49,7 +49,7 @@ See run_efast.py for an example using data located in test_data folder.
 2. Navigate to the root directory of the repository in your terminal.
 3. [OPTIONAL but recommended] Create a virtual environment: `python3.<your python version> -m venv .venv`
 3. Install the package dependencies: `pip install -r requirements.txt`
-4. Change the credentials in `run_efast.py` to your own credentials.
+4. Change the credentials in `run_efast.py` to your own CDSE credentials (needed to download Sentinel-2 and Sentinel-3 data).
 5. Run the example: `python run_efast.py`
 
 ### Installation
