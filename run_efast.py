@@ -27,6 +27,8 @@ SOFTWARE.
 
 import argparse
 import zipfile
+import os
+import logging
 
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -39,10 +41,24 @@ import efast.s2_processing as s2
 import efast.s3_processing as s3
 
 # CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
-CREDENTIALS = {
-    "username": "my-cdse-email",
-    "password": "my-cdse-password"
-}
+def get_credentials_from_env():
+    username = os.getenv("CDSE_USER")
+    password = os.getenv("CDSE_PASSWORD")
+    if username is None or password is None:
+        raise RuntimeError(
+                "Please make sure that CDSE credentials are available in the environment.\n"
+                "In order to proceed, set 'CDSE_USER' and 'CDSE_PASSWORD' accordingly."
+        )
+
+    print("loaded credentials for user", username)
+    return {
+        "username": username,
+        "password": password
+    }
+
+# TODO remove when downloads already happened
+# CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
+CREDENTIALS = get_credentials_from_env()
 
 # Test parameters
 path = Path("./test_data").absolute()
@@ -55,6 +71,11 @@ s3_reprojected_dir = path / "S3/reprojected"
 s2_download_dir = path / "S2/raw"
 s2_processed_dir = path / "S2/processed"
 fusion_dir = path / "fusion_results"
+
+MARKERS = Path("./markers/")
+DOWNLOAD_MARKER = MARKERS / "download.txt"
+S2_PRE_MARKER = MARKERS / "s2_pre.txt"
+S3_PRE_MARKER = MARKERS / "s3_pre.txt"
 
 
 def main(
@@ -69,13 +90,7 @@ def main(
     cdse_credentials: dict,
     snap_gpt_path: str = "gpt",
 ):
-    # Transform parameters
-    start_date = datetime.strptime(start_date, "%Y-%m-%d")
-    end_date = datetime.strptime(end_date, "%Y-%m-%d")
-    if s3_sensor == "SYN":
-        instrument = "SYNERGY"
-    else:
-        instrument = s3_sensor
+    MARKERS.mkdir(exist_ok=True, parents=True)
 
     # Create directories if necessary
     for folder in [
@@ -91,6 +106,68 @@ def main(
     ]:
         folder.mkdir(parents=True, exist_ok=True)
 
+    if not DOWNLOAD_MARKER.exists():
+        print("Downloading...")
+        instrument = download_files(
+            start_date=start_date,
+            end_date=end_date,
+            aoi_geometry=aoi_geometry,
+            s3_sensor=s3_sensor,
+            cdse_credentials=cdse_credentials,
+        )
+        with open(DOWNLOAD_MARKER, "w") as fp:
+            fp.write(instrument)
+    else:
+        with open(DOWNLOAD_MARKER, "r") as fp:
+            instrument = fp.readline()
+        print("Downloads already done")
+
+    if not S2_PRE_MARKER.exists():
+        print("Performing S2 preprocessing...")
+        footprint = s2_preprocessing(s2_bands=s2_bands)
+        with open(S2_PRE_MARKER, "w") as fp:
+            fp.write(footprint)
+    else:
+        with open(S2_PRE_MARKER, "r") as fp:
+            footprint = fp.readline()
+        print("S2 preprocessing already done")
+
+    if not S3_PRE_MARKER.exists():
+        print("Performing S3 preprocessing...")
+        s3_preprocessing(
+            footprint=footprint,
+            s3_bands=s3_bands,
+            instrument=instrument,
+            snap_gpt_path=snap_gpt_path,
+            mosaic_days=mosaic_days,
+            step=step,
+        )
+        with open(S3_PRE_MARKER, "w") as fp:
+            fp.write("mark")
+    else:
+        print("S3 preprocessing already done")
+
+    date_format = "%Y-%m-%d"
+    print(f"Performing EFAST for {datetime.strptime(start_date, date_format)} to {datetime.strptime(end_date, date_format)}")
+    perform_efast(start_date=datetime.strptime(start_date, date_format), end_date=datetime.strptime(end_date, date_format), step=step)
+
+
+def download_files(
+    *,
+    start_date,
+    end_date,
+    aoi_geometry,
+    s3_sensor,
+    cdse_credentials,
+):
+    # Transform parameters
+    start_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    if s3_sensor == "SYN":
+        instrument = "SYNERGY"
+    else:
+        instrument = s3_sensor
+
     # Download the data from CDSE
     download_from_cdse(
         start_date,
@@ -98,8 +175,12 @@ def main(
         aoi_geometry,
         s2_download_dir,
         s3_download_dir,
-        cdse_credentials)
+        cdse_credentials,
+    )
+    return instrument
 
+
+def s2_preprocessing(*, s2_bands):
     # Sentinel-2 pre-processing
     s2.extract_mask_s2_bands(
         s2_download_dir,
@@ -112,6 +193,18 @@ def main(
     footprint = s2.get_wkt_footprint(
         s2_processed_dir,
     )
+    return footprint
+
+
+def s3_preprocessing(
+    *,
+    footprint,
+    s3_bands,
+    instrument,
+    snap_gpt_path,
+    mosaic_days,
+    step,
+):
 
     # Sentinel-3 pre-processing
     s3.binning_s3(
@@ -148,6 +241,8 @@ def main(
         s3_reprojected_dir,
     )
 
+
+def perform_efast(*, start_date, end_date, step):
     # Perform EFAST fusion
     for date in rrule.rrule(
         rrule.DAILY,
@@ -155,6 +250,8 @@ def main(
         until=end_date - timedelta(step),
         interval=step,
     ):
+        logger = logging.getLogger(__name__)
+        logger.info(f"Performing efast for {date}")
         efast.fusion(
             date,
             s3_reprojected_dir,
@@ -167,39 +264,44 @@ def main(
 
 
 def download_from_cdse(
-        start_date,
-        end_date,
-        aoi_geometry,
-        s2_download_dir,
-        s3_download_dir,
-        credentials):
+    start_date, end_date, aoi_geometry, s2_download_dir, s3_download_dir, credentials
+):
 
     # First download Sentinel-3 SYN data
-    results = query.query('Sentinel3',
-                          start_date=start_date,
-                          end_date=end_date,
-                          geometry=aoi_geometry,
-                          instrument="SYNERGY",
-                          productType="SY_2_SYN___",
-                          timeliness="NT")
-    download.download_list([result['id'] for result in results.values()],
-                           outdir=s3_download_dir,
-                           threads=3,
-                           **credentials)
+    results = query.query(
+        "Sentinel3",
+        start_date=start_date,
+        end_date=end_date,
+        geometry=aoi_geometry,
+        instrument="SYNERGY",
+        productType="SY_2_SYN___",
+        timeliness="NT",
+    )
+    download.download_list(
+        [result["id"] for result in results.values()],
+        outdir=s3_download_dir,
+        threads=1,
+        **credentials,
+    )
     for zip_file in s3_download_dir.glob("*.zip"):
+        print(zip_file)
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s3_download_dir)
 
     # Then download Sentinel-2 L2A data
-    results = query.query('Sentinel2',
-                          start_date=start_date,
-                          end_date=end_date,
-                          geometry=aoi_geometry,
-                          productType="L2A")
-    download.download_list([result['id'] for result in results.values()],
-                           outdir=s2_download_dir,
-                           threads=3,
-                           **credentials)
+    results = query.query(
+        "Sentinel2",
+        start_date=start_date,
+        end_date=end_date,
+        geometry=aoi_geometry,
+        productType="L2A",
+    )
+    download.download_list(
+        [result["id"] for result in results.values()],
+        outdir=s2_download_dir,
+        threads=3,
+        **credentials,
+    )
     for zip_file in s2_download_dir.glob("*.zip"):
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s2_download_dir)
@@ -207,9 +309,11 @@ def download_from_cdse(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start-date", default="2023-09-11")
-    parser.add_argument("--end-date", default="2023-09-21")
-    parser.add_argument("--aoi-geometry", default="POINT (-15.432283 15.402828)")  # Dahra EC tower
+    parser.add_argument("--start-date", default="2022-06-01")
+    parser.add_argument("--end-date", default="2022-06-30")
+    parser.add_argument(
+        "--aoi-geometry", default="POINT (-15.432283 15.402828)"
+    )  # Dahra EC tower
     parser.add_argument("--s3-sensor", default="SYN")
     parser.add_argument(
         "--s3-bands", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
@@ -232,5 +336,5 @@ if __name__ == "__main__":
         step=args.step,
         mosaic_days=args.mosaic_days,
         cdse_credentials=args.cdse_credentials,
-        snap_gpt_path=args.snap_gpt_path
+        snap_gpt_path=args.snap_gpt_path,
     )
