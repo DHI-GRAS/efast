@@ -43,7 +43,6 @@ from rasterio.vrt import WarpedVRT
 from snap_graph.snap_graph import SnapGraph
 from tqdm import tqdm
 
-
 def binning_s3(
     download_dir,
     binning_dir,
