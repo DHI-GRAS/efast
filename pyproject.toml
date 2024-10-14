@@ -7,9 +7,10 @@ name = "efast"
 authors = [
     {name = "sa", email = "smth@email.com"},
 ]
-description = "My package description"
+description = "OpenEO implementation of the efast Sentinel-2/3 fusion algorithm"
 readme = "README.md"
 dynamic = ["version"]
+requires-python = ">= 3.10, < 3.12"
 dependencies = [
     "python-dateutil",
     "numpy",
@@ -20,8 +21,16 @@ dependencies = [
     "pyproj",
     "shapely",
     "astropy",
+    "scikit-learn",
     "snap-graph @ git+https://github.com/DHI-GRAS/snap-graph",
+    "creodias-finder @ git+https://github.com/DHI-GRAS/creodias-finder",
 
+    "jupyterlab>=4.2.5",
+    "openeo[localprocessing]>0.30",
+    "openeo-processes-dask[implementations, ml]",
+    "netcdf4",
+    "enhancement_tools @ file://${PROJECT_ROOT}/../../enhancement_tools",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]
@@ -38,3 +47,8 @@ select = ["I"]
 [tool.ruff.lint.isort]
 # Use a single line between direct and from import.
 lines-between-types = 1
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+]

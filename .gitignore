@@ -136,8 +136,8 @@ zappa_settings.toml
 
 _version.py
 Makefile
-tests/
 
 test_data
 data
 markers
+local
