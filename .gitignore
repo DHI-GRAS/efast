@@ -18,6 +18,8 @@ Hectors_Sentinel3/*
 s3_processing_vis.py
 figures/*
 s3_fusion/savitzky_golay.py
+local
+*.nc
 
 
 # Byte-compiled / optimized / DLL files
@@ -140,4 +142,3 @@ Makefile
 test_data
 data
 markers
-local
