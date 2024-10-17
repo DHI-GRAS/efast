@@ -37,6 +37,12 @@ from shapely.geometry import box
 from shapely.ops import transform
 from tqdm import tqdm
 
+# TODO TEMP
+from pathlib import Path
+BASE_DIR = Path("efast_results")
+# TODO END TEMP
+
+
 # Mapping of Sentinel-2 bands names to bands ids
 BANDS_IDS = {
     "B02": "1",
@@ -121,6 +127,13 @@ def extract_mask_s2_bands(
         with rasterio.open(out_path, "w", **profile) as dst:
             dst.write(s2_image)
 
+        # TODO TEMP
+        BASE_DIR.mkdir(exist_ok=True)
+        mask_profile = profile.copy()
+        mask_profile["count"] = 1
+        with rasterio.open(BASE_DIR / "cloud_mask_efast.tif", "w", **mask_profile) as dst:
+            dst.write(mask[np.newaxis])
+
 
 def distance_to_clouds(dir_s2, ratio=30, tolerance_percentage=0.05):
     """
@@ -203,7 +216,36 @@ def distance_to_clouds(dir_s2, ratio=30, tolerance_percentage=0.05):
         out_path = re.sub("_[A-Z]*\.tif", "_DIST_CLOUD.tif", str(sen2_path))
         with rasterio.open(out_path, "w", **s2_profile) as dst:
             dst.write(distance_to_cloud[np.newaxis])
+        # TODO TEMP
+        with rasterio.open(BASE_DIR / "dtc_efast.tif", "w", **s2_profile) as dst:
+            dst.write(distance_to_cloud[np.newaxis])
 
+        with rasterio.open(BASE_DIR / "dtc_input_efast.tif", "w", **s2_profile) as dst:
+            dst.write(mask[np.newaxis])
+
+        with rasterio.open(BASE_DIR / "cloud_mask_resampled_efast.tif", "w", **s2_profile) as dst:
+            dst.write(s2_block[np.newaxis])
+
+
+
+def distance_to_clouds_in_memory(s2_hr, ratio=30, tolerance_percentage=0.05) -> np.ndarray:
+    """
+    Only the algorithm part of the `distance_to_clouds` function.
+    """
+    # Check if a Sentinel-3 pixel is complete
+    s2_block = (
+        (s2_hr == 0)
+        .reshape(s2_hr.shape[0] // ratio, ratio, s2_hr.shape[1] // ratio, ratio)
+        .mean(3)
+        .mean(1)
+    )
+
+    # Distance to cloud score
+    mask = s2_block < tolerance_percentage
+    distance_to_cloud = sp.ndimage.distance_transform_edt(mask)
+    distance_to_cloud = np.clip(distance_to_cloud, 0, 255)
+    return distance_to_cloud
+    
 
 def get_wkt_footprint(dir_s2, crs="EPSG:4326"):
     """
