@@ -46,20 +46,33 @@ def extract_mask(cube):
 def distance_to_clouds(
     cube: openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
 ):
-    udf = openeo.UDF.from_file("efast/distance_transform_udf.py")
-    #     kernel_size = np.ceil(max_distance)
-    #     gaussian_1d = scipy.signal.windows.gaussian(M=kernel_size, std=255 / 4)
-    #     kernel = np.outer(gaussian_1d, gaussian_1d)
-    #     kernel /= kernel.sum()
+    return _distance_to_clouds_udf(cube, tolerance_percentage=tolerance_percentage, ratio=ratio, max_distance=max_distance)
 
-    # dtc = 1 - cube.apply_kernel(kernel)
-#     dtc = cube.apply_neighborhood(
-#         udf,
-#         size=[
-#             {"dimension": "x", "value": 61, "unit": "px"},
-#             {"dimension": "y", "value": 61, "unit": "px"},
-#         ],
-#         overlap=[],
-#     )
-    dtc = cube.apply(udf)
+
+def _distance_to_clouds_kernel(
+    cube: openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=7
+):
+    kernel_size = np.ceil(max_distance)
+    gaussian_1d = scipy.signal.windows.gaussian(M=kernel_size, std=255 / 4)
+    kernel = np.outer(gaussian_1d, gaussian_1d)
+    kernel /= kernel.sum()
+
+    dtc = cube.apply_kernel(kernel)
+    return dtc
+
+
+# TODO implement max_distance as a parameter to the UDF
+# TODO replace hard coded tile size (366)
+def _distance_to_clouds_udf(
+    cube: openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
+):
+    udf = openeo.UDF.from_file("efast/distance_transform_udf.py")
+    dtc = cube.apply_neighborhood(
+        udf,
+        size=[
+            {"dimension": "x", "value": 366, "unit": "px"},
+            {"dimension": "y", "value": 366, "unit": "px"},
+        ],
+        overlap=[],
+    )
     return dtc
