@@ -61,13 +61,8 @@ def test_distance_to_cloud():
             dtc_reference = ds.read(1)
             bounds = spatial_extent_from_bounds(ds.crs, bounding_box=ds.bounds)
 
-        # make smaller
-
-        scale = 3
-        rows, columns = map(lambda x: x // scale, dtc_reference.shape)
-        bounds["west"] = bounds["east"] - (bounds["east"] - bounds["west"]) / scale
-        bounds["south"] = bounds["north"] + (bounds["south"] - bounds["north"]) / scale
         # FIXME we need the rows and columns only because there is an issue with openeo that causes
+        # the results to have a different grid than they should.
         # See https://forum.dataspace.copernicus.eu/t/resample-spatial-does-not-properly-align/1278
         rows, columns = dtc_reference.shape
 
