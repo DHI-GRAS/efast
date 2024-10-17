@@ -12,7 +12,7 @@ import rasterio
 import openeo
 from openeo.udf import execute_local_udf
 
-from efast import efast_openeo, s2_processing
+from efast import s2_processing_openeo, s2_processing
 
 TEST_DATA_ROOT = Path(__file__).parent.parent / "test_data"
 TEST_DATA_S2 = TEST_DATA_ROOT / "S2"
@@ -68,38 +68,20 @@ def test_distance_to_cloud():
 
         # openeo
 
-        conn = efast_openeo.connect()
+        conn = s2_processing_openeo.connect()
         conn.authenticate_oidc()
 
-        test_area = efast_openeo.TestArea(bbox=bounds, s2_bands=["SCL"], temporal_extent=(TEST_DATE_DASH, TEST_DATE_DASH))
+        test_area = s2_processing_openeo.TestArea(bbox=bounds, s2_bands=["SCL"], temporal_extent=(TEST_DATE_DASH, TEST_DATE_DASH))
         cube = test_area.get_s2_cube(conn)
 
-        scl = cube.filter_bands(["SCL"])
-        cloud_mask = (scl == 0) | (scl == 3) | (scl > 7)
-        # FIXME check also if there is negative or zero data, otherwise results will differ
-        
-        # TODO this could better be resample_cube_spatial, because we are matching to a sentinel-3 cube
-        cloud_mask = cloud_mask * 1.0 # convert to float
-        cloud_mask_resampled = cloud_mask.resample_spatial(300, method="average") # resample to sentinel-3 size
-
-        # UDF to apply an element-wise less than operation. Normal "<" does not properly work on openEO datacubes
-        udf = openeo.UDF("""
-import numpy as np
-import xarray as xr
-def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
-    array = cube.get_array()
-    array = array < 0.05
-    #return XarrayDataCube(xr.DataArray(array, dims=["t", "x", "y", "bands"]))
-    return XarrayDataCube(xr.DataArray(array, dims=["bands", "x", "y"]))
-            """)
-        dtc_input = cloud_mask_resampled.apply(process=udf)
-        dtc = efast_openeo.distance_to_clouds(dtc_input, tolerance_percentage=0.05, ratio=30)
-        download_path = tmp_path / "test_distance_to_cloud.nc"
+        dtc_input = s2_processing_openeo.calculate_large_grid_cloud_mask(cube, tolerance_percentage=0.05, grid_side_length=300)
+        dtc = s2_processing_openeo.distance_to_clouds(dtc_input, tolerance_percentage=0.05, ratio=30)
+        download_path = tmp_path / "test_distance_to_cloud.tif"
 
         print("openEO execution")
 
         # intermediate results for debugging
-        #BASE_DIR = Path("openeo_results")
+        BASE_DIR = Path("openeo_results")
         #BASE_DIR.mkdir(exist_ok=True)
         #cloud_mask.download(BASE_DIR / "cloud_mask.tif")
         #cloud_mask_resampled.download(BASE_DIR / "cloud_mask_resampled.tif")
@@ -107,6 +89,7 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
 
         before = time.perf_counter()
         dtc.download(download_path)
+        shutil.copy(download_path, BASE_DIR)
         elapsed = time.perf_counter() - before
         print(f"executed and downloaded in {elapsed:.2f}s")
 

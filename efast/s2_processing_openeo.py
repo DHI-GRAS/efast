@@ -36,11 +36,37 @@ class TestArea:
         )
 
 
-def extract_mask(cube):
-    scl = cube.band("SCL")
-    # TODO what are the meanings of these values?
+def extract_cloud_mask(cube: openeo.DataCube):
+    scl = cube.filter_bands(["SCL"])
+    # 0: No data
+    # 3: Cloud shadow
+    # 8-10: Clouds
+    # 11: Snow or ice
+
     mask = (scl == 0) | (scl == 3) | (scl > 7)
     return mask
+
+
+def calculate_large_grid_cloud_mask(cube: openeo.DataCube, tolerance_percentage: float = 0.05, grid_side_length: int=300):
+    cloud_mask = extract_cloud_mask(cube)
+    # FIXME check also if there is negative or zero data, otherwise results will differ
+    
+    # TODO this could better be resample_cube_spatial, because we are matching to a sentinel-3 cube
+    cloud_mask = cloud_mask * 1.0 # convert to float
+    cloud_mask_resampled = cloud_mask.resample_spatial(grid_side_length, method="average") # resample to sentinel-3 size
+
+    # TODO extract UDF to file
+    # UDF to apply an element-wise less than operation. Normal "<" does not properly work on openEO datacubes
+    udf = openeo.UDF(f"""
+import numpy as np
+import xarray as xr
+def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+    array = cube.get_array()
+    array = array < {tolerance_percentage}
+    #return XarrayDataCube(xr.DataArray(array, dims=["t", "x", "y", "bands"]))
+    return XarrayDataCube(xr.DataArray(array, dims=["bands", "x", "y"]))
+            """)
+    return cloud_mask_resampled.apply(process=udf)
 
 
 def distance_to_clouds(
