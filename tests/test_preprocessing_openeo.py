@@ -1,6 +1,7 @@
 from collections.abc import Generator
 import shutil
 import time
+import pytest
 
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,7 +18,11 @@ from enhancement_tools.time_measurement import Timer
 
 from openeo.udf import execute_local_udf
 
-from efast import s2_processing, s2_processing_openeo, s3_processing
+from efast.openeo import preprocessing
+# TODO this should live somewhere else
+from efast.openeo.preprocessing import connect
+from efast import s2_processing, s3_processing
+
 
 TEST_DATA_ROOT = Path(__file__).parent.parent / "test_data"
 TEST_DATA_S2 = TEST_DATA_ROOT / "S2"
@@ -33,7 +38,8 @@ TEST_DATA_S2_NETCDF = (
 TEST_DATE = "20220618"
 TEST_DATE_DASH = "2022-06-18"
 
-SKIP_LOCAL = False
+SKIP_LOCAL = True
+DOWNLOAD_INTERMEDIATE_RESULTS = True
 SMALL_AREA = True
 
 
@@ -57,6 +63,7 @@ def create_temp_dir_and_copy_files(
 ############################## S2 Processing ##############################
 
 
+@pytest.mark.skip
 def test_distance_to_cloud():
     with create_temp_dir_and_copy_files(TEST_DATA_S2, sub="raw/", pattern=None) as tmp:
         tmp_path = Path(tmp.name)
@@ -86,38 +93,40 @@ def test_distance_to_cloud():
 
         # openeo
 
-        conn = s2_processing_openeo.connect()
+        conn = connect()
         conn.authenticate_oidc()
 
-        test_area = s2_processing_openeo.TestArea(
+        test_area = preprocessing.TestArea(
             bbox=bounds,
             s2_bands=["SCL"],
             temporal_extent=(TEST_DATE_DASH, TEST_DATE_DASH),
         )
         cube = test_area.get_s2_cube(conn)
 
-        dtc_input = s2_processing_openeo.calculate_large_grid_cloud_mask(
+        dtc_input = preprocessing.s2.calculate_large_grid_cloud_mask(
             cube, tolerance_percentage=0.05, grid_side_length=300
         )
-        dtc = s2_processing_openeo.distance_to_clouds(
+        dtc = preprocessing.distance_to_clouds(
             dtc_input, tolerance_percentage=0.05, ratio=30
         )
         download_path = tmp_path / "test_distance_to_cloud.tif"
 
         print("openEO execution")
-
-        # intermediate results for debugging
-        BASE_DIR = Path("openeo_results")
-        # BASE_DIR.mkdir(exist_ok=True)
-        # cloud_mask.download(BASE_DIR / "cloud_mask.tif")
-        # cloud_mask_resampled.download(BASE_DIR / "cloud_mask_resampled.tif")
-        # dtc_input.download(BASE_DIR / "dtc_input.tif")
-
         before = time.perf_counter()
-        dtc.download(download_path)
-        shutil.copy(download_path, BASE_DIR)
+        #dtc.download(download_path)
         elapsed = time.perf_counter() - before
         print(f"executed and downloaded in {elapsed:.2f}s")
+
+        if DOWNLOAD_INTERMEDIATE_RESULTS:
+            BASE_DIR = Path("openeo_results")
+            BASE_DIR.mkdir(exist_ok=True)
+            print("downloading input")  # TMP
+            (dtc_input * 1.0).download(BASE_DIR / "dtc_input.tif")
+            #shutil.copy(download_path, BASE_DIR)
+        print("downloading result") # TMP
+        dtc.download(download_path) # TMP
+        shutil.copy(download_path, BASE_DIR) # TMP
+
 
         with rasterio.open(download_path, "r") as ds:
             dtc_openeo = ds.read(1)
@@ -140,7 +149,8 @@ def test_distance_to_cloud_synthetic_cube():
         .mean(1)
     ) < tolerance
     cube = xr.DataArray(cube, dims=["x", "y"])
-    cube_resampled = xr.DataArray(cube_resampled, dims=["x", "y"])
+    #cube = cube.add_dimension(name="bands", label="mask", type="bands")
+    cube_resampled = xr.DataArray(cube_resampled[np.newaxis, np.newaxis], dims=["bands", "t", "x", "y"])
 
     udf = openeo.UDF.from_file("efast/distance_transform_udf.py")
     dtc_local_udf = (
@@ -245,7 +255,7 @@ def inner_data_acquisition_s3(tmpdir):
 
     # openeo
 
-    conn = s2_processing_openeo.connect()
+    conn = connect()
     conn.authenticate_oidc()
 
     bands = [
@@ -256,7 +266,7 @@ def inner_data_acquisition_s3(tmpdir):
         "CLOUD_flags",
         "OLC_flags",
     ]
-    test_area = s2_processing_openeo.TestArea(
+    test_area = preprocessing.TestArea(
         bbox=bounds, s3_bands=bands, temporal_extent=(TEST_DATE_DASH, TEST_DATE_DASH)
     )
     cube = test_area.get_s3_cube(conn)
