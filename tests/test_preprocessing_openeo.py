@@ -33,7 +33,7 @@ TEST_DATA_S2_NETCDF = (
 TEST_DATE = "20220618"
 TEST_DATE_DASH = "2022-06-18"
 
-SKIP_LOCAL = True
+SKIP_LOCAL = False
 SMALL_AREA = True
 
 
@@ -181,7 +181,8 @@ OLC_FLAG_LAND = 0b1 << 12
 
 def test_data_acquisition_s3():
     with create_temp_dir_and_copy_files(
-        TEST_DATA_S3, sub="raw/", pattern=f"raw/*SY_2_SYN____{TEST_DATE}*"
+        TEST_DATA_S3, sub="raw/", pattern=f"raw/*SY_2_SYN____2022061*"
+        #TEST_DATA_S3, sub="raw/", pattern=f"raw/*SY_2_SYN____*"
     ) as tmp:
         inner_data_acquisition_s3(tmp)
 
@@ -201,15 +202,18 @@ def inner_data_acquisition_s3(tmpdir):
     }
 
     if SMALL_AREA:
-        dist = 900
+        dist = 3600
         bounds["east"] = bounds["west"] + dist
         bounds["north"] = bounds["south"] + dist
 
     # reference
 
     s3_binning_dir = tmp / "binning"
+    s3_composites_dir = tmp / "composites"
     s3_download_dir = tmp / "raw"
+
     s3_binning_dir.mkdir()
+    s3_composites_dir.mkdir()
     footprint = transform_bounds_to_wkt(
         bounds
     )  # TODO probably needs to be converted to wkt
@@ -227,6 +231,14 @@ def inner_data_acquisition_s3(tmpdir):
             snap_gpt_path="gpt",
             snap_memory="8G",
             snap_parallelization=1,  # TODO more than 1?
+        )
+
+        s3_processing.produce_median_composite(
+            s3_binning_dir,
+            s3_composites_dir,
+            mosaic_days=100,
+            step=2,
+            s3_bands=None,
         )
 
         shutil.copytree(s3_binning_dir, download_dir, dirs_exist_ok=True)
@@ -283,3 +295,14 @@ def transform_bounds_to_wkt(bounds: dict):
         minx=minx_wgs84, miny=miny_wgs84, maxx=maxx_wgs84, maxy=maxy_wgs84
     )
     return wkt.dumps(bbox)
+
+METADATA_UDF = openeo.UDF("""
+import numpy as np
+import xarray as xr
+from openeo.udf import XarrayDataCube
+def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+    array = cube.get_array()
+    array = array < {tolerance_percentage}
+    #return XarrayDataCube(xr.DataArray(array, dims=["t", "x", "y", "bands"]))
+    return XarrayDataCube(xr.DataArray(array, dims=["bands", "x", "y"]))
+""")

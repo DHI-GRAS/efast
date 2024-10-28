@@ -8,6 +8,7 @@ def connect():
     return openeo.connect("https://openeo.dataspace.copernicus.eu/")
 
 
+# TODO move somewhere else, not specific to sentinel-2
 class TestArea:
     # aoi_wkt = "POINT (-15.432283 15.402828)"
     directions = ["west", "south", "east", "north"]
@@ -19,7 +20,12 @@ class TestArea:
         *,
         bbox: Mapping[str, float] = bbox,
         s2_bands: Sequence[str] = ["B02", "B03", "B04", "B8A", "SCL"],
-        s3_bands: Sequence[str] = ["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"],
+        s3_bands: Sequence[str] = [
+            "Syn_Oa04_reflectance",
+            "Syn_Oa06_reflectance",
+            "Syn_Oa08_reflectance",
+            "Syn_Oa17_reflectance",
+            ],
         temporal_extent: Sequence[str] = ["2022-06-01", "2022-06-30"],
     ) -> None:
         self.bbox = bbox
@@ -33,6 +39,14 @@ class TestArea:
             spatial_extent=self.bbox,
             temporal_extent=self.temporal_extent,
             bands=self.s2_bands,
+        )
+
+    def get_s3_cube(self, connection):
+        return connection.load_collection(
+            "SENTINEL3_SYN_L2_SYN",
+            spatial_extent=self.bbox,
+            temporal_extent=self.temporal_extent,
+            bands=self.s3_bands,
         )
 
 
