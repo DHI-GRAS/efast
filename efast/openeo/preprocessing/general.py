@@ -1,14 +1,15 @@
 import operator
+
+from collections.abc import Callable, Iterable, Mapping
 from typing import Tuple
-import openeo
+
 import numpy as np
+import openeo
 import scipy
-from collections.abc import Callable, Mapping, Iterable
 
 
 def connect():
     return openeo.connect("https://openeo.dataspace.copernicus.eu/")
-
 
 
 class TestArea:
@@ -27,7 +28,7 @@ class TestArea:
             "Syn_Oa06_reflectance",
             "Syn_Oa08_reflectance",
             "Syn_Oa17_reflectance",
-            ],
+        ],
         temporal_extent: Iterable[str] = ["2022-06-01", "2022-06-30"],
     ) -> None:
         self.bbox = bbox
@@ -55,7 +56,12 @@ class TestArea:
 def distance_to_clouds(
     cube: openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
 ):
-    return _distance_to_clouds_udf(cube, tolerance_percentage=tolerance_percentage, ratio=ratio, max_distance=max_distance)
+    return _distance_to_clouds_udf(
+        cube,
+        tolerance_percentage=tolerance_percentage,
+        ratio=ratio,
+        max_distance=max_distance,
+    )
 
 
 def _distance_to_clouds_kernel(
@@ -88,13 +94,15 @@ def _distance_to_clouds_udf(
 
 
 def extract_mask(
-        cube: openeo.DataCube,
-        mask_values: Mapping[str, Iterable[int]],
-        *,
-        operations: Mapping[Tuple[str, int], Callable],
-        ) -> openeo.DataCube:
+    cube: openeo.DataCube,
+    mask_values: Mapping[str, Iterable[int]],
+    *,
+    operations: Mapping[Tuple[str, int], Callable],
+) -> openeo.DataCube:
     """
-    Generic method to extract a mask from a data cube.
+    Generic method to extract a mask from exclusive classification bands.
+    To extract a mask from a band that encodes classifications as bits
+    (i.e. no-exclusive) use ``extract_bit_mask``.
     Generate a mask that has a value of ``True`` whereever the band specified
     as a key in ``mask_values`` is equal to one of the values speicified
     as a value. Operations other than equality comparison can be specified
@@ -121,10 +129,10 @@ def extract_mask(
     :param mask_values: Mapping of band names to the values that should be masked.
     :param operations: Used to specify a comparison operation different to ``==``
         when comparing bands and values. Operations are applied as ``op(band, value)``
-    
-    """
 
-    assert(len(mask_values) > 0), "'mask_values' cannot be empty."
+    """
+    assert len(mask_values) > 0, "'mask_values' cannot be empty."
+
     def reduce_single_band(band_name, values_to_mask, mask=None):
         band = cube.band(band_name)
         vm_iter = iter(values_to_mask)
@@ -146,5 +154,34 @@ def extract_mask(
 
     for band_name, values_to_mask in zip(bands, values_to_mask):
         mask |= reduce_single_band(band_name, values_to_mask, mask)
+
+    return mask
+
+
+# TODO currently broken implmentation
+def _extract_bit_mask(
+    cube: openeo.DataCube,
+    mask_bits: Mapping[str, int],
+    invert: bool = False,
+) -> openeo.DataCube:
+    comparison_val = not invert
+    assert len(mask_bits) > 0, "'mask_bits' cannot be empty."
+
+    def reduce_single_band(band_name, single_pixel_mask, mask=None):
+        band = cube.band(band_name)
+
+        if mask is None:
+            mask = ((band & single_pixel_mask) > 0) == comparison_val
+        else:
+            mask |= ((band & single_pixel_mask) > 0) == comparison_val
+        return mask
+
+    first_band_name, *bands = mask_bits.keys()
+    first_mask_bit, *bits_to_mask = mask_bits.values()
+
+    mask = reduce_single_band(first_band_name, first_mask_bit, mask=None)
+
+    for band_name, bits_to_mask in zip(bands, bits_to_mask):
+        mask |= reduce_single_band(band_name, bits_to_mask, mask)
 
     return mask
