@@ -18,10 +18,12 @@ from enhancement_tools.time_measurement import Timer
 
 from openeo.udf import execute_local_udf
 
+from efast.constants import S3L2SYNClassificationAerosolFlags
 from efast.openeo import preprocessing
 # TODO this should live somewhere else
 from efast.openeo.preprocessing import connect
 from efast import s2_processing, s3_processing
+from efast.openeo.preprocessing.s3 import extract_clear_land_mask
 
 
 TEST_DATA_ROOT = Path(__file__).parent.parent / "test_data"
@@ -40,8 +42,9 @@ TEST_DATE_DASH = "2022-06-18"
 
 SKIP_LOCAL = True
 DOWNLOAD_INTERMEDIATE_RESULTS = True
-SMALL_AREA = True
+SMALL_AREA = False
 
+VISUAL_OUTPUT_PATH = Path(__file__).parent.parent / "visual_test_results"
 
 @contextmanager
 def create_temp_dir_and_copy_files(
@@ -316,3 +319,38 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     #return XarrayDataCube(xr.DataArray(array, dims=["t", "x", "y", "bands"]))
     return XarrayDataCube(xr.DataArray(array, dims=["bands", "x", "y"]))
 """)
+
+def test_extract_clear_land_mask_s3():
+    out_path = VISUAL_OUTPUT_PATH / "extract_clear_land_mask"
+    out_path.mkdir(exist_ok=True, parents=True)
+    conn = connect()
+    conn = conn.authenticate_oidc()
+    bounds = {
+        "west": 399960.0,
+        "south": 1590240.0,
+        "east": 509760.0,
+        "north": 1700040.0,
+        "crs": 32628,
+    }
+    if SMALL_AREA:
+        dist = 3600
+        bounds["east"] = bounds["west"] + dist
+        bounds["north"] = bounds["south"] + dist
+
+    bands = [
+        "Syn_Oa17_reflectance",
+        "CLOUD_flags",
+        "SYN_flags",
+    ]
+    test_area = preprocessing.TestArea(
+        bbox=bounds, s3_bands=bands, temporal_extent=(TEST_DATE_DASH, TEST_DATE_DASH)
+    )
+    cube = test_area.get_s3_cube(conn)
+
+
+    print("Downloading input")
+    #cube.download(out_path / "input.nc")
+    mask = extract_clear_land_mask(cube)
+    print("Downloading mask")
+    mask.download(out_path / "mask.nc")
+    print("Done")
