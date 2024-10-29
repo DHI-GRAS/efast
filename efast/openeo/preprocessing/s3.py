@@ -1,6 +1,8 @@
 from datetime import datetime
+
 import openeo
-from openeo import processes, UDF
+
+from openeo import UDF, processes
 
 from efast.constants import S3L2SYNClassificationAerosolFlags, S3L2SYNCloudFlags
 from efast.openeo.preprocessing.general import _extract_bit_mask

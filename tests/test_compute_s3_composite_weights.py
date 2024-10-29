@@ -65,6 +65,3 @@ def test_time_difference_score():
     res = execute_local_udf(udf, data, fmt="netcdf")
 
     return True
-
-
-

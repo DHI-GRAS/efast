@@ -1,30 +1,29 @@
-from collections.abc import Generator
 import shutil
 import time
-import pytest
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import openeo
-import rasterio
-import xarray as xr
 import pyproj
+import pytest
+import rasterio
 import shapely
-from shapely import wkt
+import xarray as xr
+
 from enhancement_tools.time_measurement import Timer
-
 from openeo.udf import execute_local_udf
+from shapely import wkt
 
-from efast.constants import S3L2SYNClassificationAerosolFlags
+from efast import s2_processing, s3_processing
 from efast.openeo import preprocessing
+
 # TODO this should live somewhere else
 from efast.openeo.preprocessing import connect
-from efast import s2_processing, s3_processing
 from efast.openeo.preprocessing.s3 import extract_clear_land_mask
-
 
 TEST_DATA_ROOT = Path(__file__).parent.parent / "test_data"
 TEST_DATA_S2 = TEST_DATA_ROOT / "S2"
@@ -45,6 +44,7 @@ DOWNLOAD_INTERMEDIATE_RESULTS = True
 SMALL_AREA = False
 
 VISUAL_OUTPUT_PATH = Path(__file__).parent.parent / "visual_test_results"
+
 
 @contextmanager
 def create_temp_dir_and_copy_files(
@@ -116,7 +116,7 @@ def test_distance_to_cloud():
 
         print("openEO execution")
         before = time.perf_counter()
-        #dtc.download(download_path)
+        # dtc.download(download_path)
         elapsed = time.perf_counter() - before
         print(f"executed and downloaded in {elapsed:.2f}s")
 
@@ -125,11 +125,10 @@ def test_distance_to_cloud():
             BASE_DIR.mkdir(exist_ok=True)
             print("downloading input")  # TMP
             (dtc_input * 1.0).download(BASE_DIR / "dtc_input.tif")
-            #shutil.copy(download_path, BASE_DIR)
-        print("downloading result") # TMP
-        dtc.download(download_path) # TMP
-        shutil.copy(download_path, BASE_DIR) # TMP
-
+            # shutil.copy(download_path, BASE_DIR)
+        print("downloading result")  # TMP
+        dtc.download(download_path)  # TMP
+        shutil.copy(download_path, BASE_DIR)  # TMP
 
         with rasterio.open(download_path, "r") as ds:
             dtc_openeo = ds.read(1)
@@ -152,8 +151,10 @@ def test_distance_to_cloud_synthetic_cube():
         .mean(1)
     ) < tolerance
     cube = xr.DataArray(cube, dims=["x", "y"])
-    #cube = cube.add_dimension(name="bands", label="mask", type="bands")
-    cube_resampled = xr.DataArray(cube_resampled[np.newaxis, np.newaxis], dims=["bands", "t", "x", "y"])
+    # cube = cube.add_dimension(name="bands", label="mask", type="bands")
+    cube_resampled = xr.DataArray(
+        cube_resampled[np.newaxis, np.newaxis], dims=["bands", "t", "x", "y"]
+    )
 
     udf = openeo.UDF.from_file("efast/distance_transform_udf.py")
     dtc_local_udf = (
@@ -194,8 +195,10 @@ OLC_FLAG_LAND = 0b1 << 12
 
 def test_data_acquisition_s3():
     with create_temp_dir_and_copy_files(
-        TEST_DATA_S3, sub="raw/", pattern=f"raw/*SY_2_SYN____2022061*"
-        #TEST_DATA_S3, sub="raw/", pattern=f"raw/*SY_2_SYN____*"
+        TEST_DATA_S3,
+        sub="raw/",
+        pattern=f"raw/*SY_2_SYN____2022061*",
+        # TEST_DATA_S3, sub="raw/", pattern=f"raw/*SY_2_SYN____*"
     ) as tmp:
         inner_data_acquisition_s3(tmp)
 
@@ -309,6 +312,7 @@ def transform_bounds_to_wkt(bounds: dict):
     )
     return wkt.dumps(bbox)
 
+
 METADATA_UDF = openeo.UDF("""
 import numpy as np
 import xarray as xr
@@ -319,6 +323,7 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     #return XarrayDataCube(xr.DataArray(array, dims=["t", "x", "y", "bands"]))
     return XarrayDataCube(xr.DataArray(array, dims=["bands", "x", "y"]))
 """)
+
 
 def test_extract_clear_land_mask_s3():
     out_path = VISUAL_OUTPUT_PATH / "extract_clear_land_mask"
@@ -347,9 +352,8 @@ def test_extract_clear_land_mask_s3():
     )
     cube = test_area.get_s3_cube(conn)
 
-
     print("Downloading input")
-    #cube.download(out_path / "input.nc")
+    # cube.download(out_path / "input.nc")
     mask = extract_clear_land_mask(cube)
     print("Downloading mask")
     mask.download(out_path / "mask.nc")

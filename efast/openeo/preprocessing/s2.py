@@ -18,7 +18,7 @@ def extract_cloud_mask(cube: openeo.DataCube) -> openeo.DataCube:
             ]
         },
         operations={
-            ("SCL", 7): operator.gt, # consider flags higher than 7 as clouds
+            ("SCL", 7): operator.gt,  # consider flags higher than 7 as clouds
         },
     )
 
