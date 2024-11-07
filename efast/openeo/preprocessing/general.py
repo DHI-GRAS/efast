@@ -5,6 +5,7 @@ from typing import Tuple
 
 import numpy as np
 import openeo
+from openeo import processes
 import scipy
 
 
@@ -44,7 +45,7 @@ class TestArea:
             bands=self.s2_bands,
         )
 
-    def get_s3_cube(self, connection):
+    def get_s3_cube(self, connection) -> openeo.DataCube:
         return connection.load_collection(
             "SENTINEL3_SYN_L2_SYN",
             spatial_extent=self.bbox,
@@ -53,9 +54,10 @@ class TestArea:
         )
 
 
+# TODO ratio and max_distance arguments unused
 def distance_to_clouds(
-    cube: openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
-):
+    cube: processes.ProcessBuilder | openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
+) -> processes.ProcessBuilder:
     return _distance_to_clouds_udf(
         cube,
         tolerance_percentage=tolerance_percentage,
@@ -79,8 +81,8 @@ def _distance_to_clouds_kernel(
 # TODO implement max_distance as a parameter to the UDF
 # TODO replace hard coded tile size (366)
 def _distance_to_clouds_udf(
-    cube: openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
-):
+    cube: processes.ProcessBuilder | openeo.DataCube, tolerance_percentage=0.05, ratio=30, max_distance=255
+) -> processes.ProcessBuilder:
     udf = openeo.UDF.from_file("efast/distance_transform_udf.py")
     dtc = cube.apply_neighborhood(
         udf,
