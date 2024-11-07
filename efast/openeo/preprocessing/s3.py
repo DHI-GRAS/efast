@@ -55,14 +55,25 @@ def composite(cube):
     pass
 
 
-# TODO rename D to something more useful
 def compute_distance_to_cloud_score(
-    distance_to_cloud: processes.ProcessBuilder, D: float
+    distance_to_cloud: processes.ProcessBuilder, transition_region_extent: float
 ) -> processes.ProcessBuilder:
-    score = (distance_to_cloud - 1) / D
+    score = (distance_to_cloud - 1) / transition_region_extent
     return processes.clip(score, 0.0, 1.0)
 
 
+# TODO rename sigma doy
+def compute_combined_score(distance_score: processes.ProcessBuilder, target_date: datetime, sigma_doy: int=10) -> processes.ProcessBuilder:
+    udf = UDF.from_file("efast/openeo/udf/compute_s3_composite_weights.py")
+    context = {
+        "target_date": target_date.strftime(DATE_FORMAT),
+        "sigma_doy": sigma_doy,
+        }
+    return distance_score.apply(process=udf, context=context)
+
+
+
+# TODO obsolete
 def compute_time_weighted_cube(
     unweighted_cube: processes.ProcessBuilder, target_date: datetime
 ) -> processes.ProcessBuilder:
