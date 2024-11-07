@@ -1,3 +1,4 @@
+from datetime import datetime
 import shutil
 import time
 
@@ -23,7 +24,8 @@ from efast.openeo import preprocessing
 
 # TODO this should live somewhere else
 from efast.openeo.preprocessing import connect
-from efast.openeo.preprocessing.s3 import extract_clear_land_mask
+from efast.openeo.preprocessing.general import distance_to_clouds
+from efast.openeo.preprocessing.s3 import DATE_FORMAT, compute_combined_score, compute_distance_to_cloud_score, extract_clear_land_mask
 
 TEST_DATA_ROOT = Path(__file__).parent.parent / "test_data"
 TEST_DATA_S2 = TEST_DATA_ROOT / "S2"
@@ -41,7 +43,7 @@ TEST_DATE_DASH = "2022-06-18"
 
 SKIP_LOCAL = True
 DOWNLOAD_INTERMEDIATE_RESULTS = True
-SMALL_AREA = False
+SMALL_AREA = True
 
 VISUAL_OUTPUT_PATH = Path(__file__).parent.parent / "visual_test_results"
 
@@ -353,8 +355,59 @@ def test_extract_clear_land_mask_s3():
     cube = test_area.get_s3_cube(conn)
 
     print("Downloading input")
-    # cube.download(out_path / "input.nc")
+    cube.download(out_path / "input.nc")
     mask = extract_clear_land_mask(cube)
     print("Downloading mask")
     mask.download(out_path / "mask.nc")
     print("Done")
+
+
+def test_s3_weighted_composites():
+    out_path = VISUAL_OUTPUT_PATH / "s3_weighted_composites"
+    out_path.mkdir(exist_ok=True, parents=True)
+    conn = connect()
+    conn = conn.authenticate_oidc()
+    bounds = {
+        "west": 399960.0,
+        "south": 1590240.0,
+        "east": 509760.0,
+        "north": 1700040.0,
+        "crs": 32628,
+    }
+    if SMALL_AREA:
+        dist = 3600
+        bounds["east"] = bounds["west"] + dist
+        bounds["north"] = bounds["south"] + dist
+
+    bands = [
+        "Syn_Oa17_reflectance",
+        "CLOUD_flags",
+        "SYN_flags",
+    ]
+    test_area = preprocessing.TestArea(
+        bbox=bounds, s3_bands=bands, temporal_extent=(TEST_DATE_DASH, TEST_DATE_DASH)
+    )
+
+    # steps
+    # get data
+    # compute distance to cloud
+    # compute distance score
+    # compute combined score
+    # collapse weighted inputs into a single composite
+
+    cube = test_area.get_s3_cube(conn)
+    dtc = distance_to_clouds(cube)
+    distance_score = compute_distance_to_cloud_score(dtc, transition_region_extent=20)
+
+    score = preprocessing.s3.compute_combined_score(distance_score, target_date=datetime.strptime(TEST_DATE_DASH, DATE_FORMAT))
+
+
+    print("Downloading input")
+    cube.download(out_path / "input.nc")
+    print("Downloading distance to clouds")
+    dtc.download(out_path / "dtc.nc")
+    print("type of dtc: ", type(dtc))
+    print("Downloading score")
+    score.download(out_path / "score.nc")
+
+    return True
