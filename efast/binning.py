@@ -110,7 +110,7 @@ class SynProduct:
         for band_name in band_names:
             file_name = determine_file_name_from_reflectance_variable_name(band_name)
             # by default `mask_and_scale=None` behaves as if `mask_and_scale=True`
-            band_ds = xr.open_dataset(self.path / file_name)
+            band_ds = xr.open_dataset(self.path / file_name, mask_and_scale=False)
             bands.append(band_ds[band_name])
 
         return {name: band for (name, band) in zip(band_names, bands)}
@@ -198,47 +198,53 @@ def bin_to_grid(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_sampli
     return binned
 
 def bin_to_grid_numpy(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_sampling: int=1, interpolation_order: int=1) -> NDArray:
-    lat = ds["lat"]
-    lon = ds["lon"]
+    lat2d = ds["lat"].data
+    lon2d = ds["lon"].data
 
-    #lat = ndimage.zoom(lat, super_sampling, order=interpolation_order).ravel()
-    #lon = ndimage.zoom(lon, super_sampling, order=interpolation_order).ravel()
-    lat = super_sample_opencv(lat.data, super_sampling, interpolation=cv2.INTER_LINEAR).ravel()
-    lon = super_sample_opencv(lon.data, super_sampling, interpolation=cv2.INTER_LINEAR).ravel()
+    lat = super_sample_opencv(lat2d, super_sampling, interpolation=cv2.INTER_LINEAR).ravel()
+    lon = super_sample_opencv(lon2d, super_sampling, interpolation=cv2.INTER_LINEAR).ravel()
 
     width = grid.lon.shape[0] - 1
     height = grid.lat.shape[0] - 1
 
     pixel_size = (grid.lon[-1] - grid.lon[0]) / width
-    bin_idx_row = (lat - grid.lat[0]) / pixel_size
-    bin_idx_col = (lon - grid.lon[0]) / pixel_size
 
-    # TODO test
-    bin_idx_row = bin_idx_row.astype(int)
-    bin_idx_col = bin_idx_col.astype(int)
+    # Reuse for outputs
+    bin_idx_buf = np.zeros_like(lat)
 
-    bin_idx = bin_idx_row * width + bin_idx_col
+    bin_idx_row = np.divide((lat - grid.lat[0]),  pixel_size, out=bin_idx_buf).astype(int)
+    bin_idx_col = np.divide((lon - grid.lon[0]), pixel_size, out=bin_idx_buf).astype(int)
+
+    bin_idx = bin_idx_row * width
+    bin_idx += bin_idx_col
+
+
+    
     bin_idx[(bin_idx_row < 0) | (bin_idx_row > height) | (bin_idx_col < 0) | (bin_idx_col > width)] = -1
+    #bin_idx[(bin_idx_row < 0)] = -1
+    #bin_idx[(bin_idx_row > height)] = -1
+    #bin_idx[(bin_idx_col < 0)] = -1
+    #bin_idx[(bin_idx_col > width)] = -1
 
     counts, _  = np.histogram(bin_idx, width * height, range=(0, width*height))
-    #counts, _, _ = np.histogram2d(bin_idx_row, bin_idx_col, bins=(range(height + 1), range(width + 1)))#, range=(0, width * height))
         
     binned = []
+    means = None
+    sampled_data = None if super_sampling == 1 else np.zeros((lat2d.shape[0] * super_sampling, lat2d.shape[1] * super_sampling), dtype=np.int16)
+
+    FILL_VALUE = -10000 # TODO move
     for band in bands:
         data = ds[band].data
-        data[np.isnan(data)] = 0
+        data[data == FILL_VALUE] = 0
         if super_sampling != 1:
-            # TODO could reuse allocation
-            data = super_sample(data, super_sampling)
-        if data.dtype == np.float32:
-            # TODO otherwise we get weird results
-            data = data.astype(np.float64)
-        hist, _ = np.histogram(bin_idx, range(width * height + 1), weights=data.ravel(), range=(0, width*height))
-        #hist, _, _ = np.histogram2d(bin_idx_row, bin_idx_col, (range(height + 1), range(width + 1)), weights=data.ravel(), range=(0, width * height))
-        # TODO divide by zero
-        #means = (hist / counts).reshape((height, width))
-        means = (hist / counts).reshape(height, width)
-        binned.append(means)
+            super_sample(data, super_sampling, out=sampled_data)
+        else:
+            sampled_data = data
+
+        hist, _ = np.histogram(bin_idx, range(width * height + 1), weights=sampled_data.astype(np.int32).reshape(-1), range=(0, width*height))
+        means = np.divide(hist, counts, out=means)
+        scaled_means = means.reshape(height, width) * SCALE_FACTOR
+        binned.append(scaled_means)
 
     binned = np.array(binned)
     return binned
@@ -290,5 +296,5 @@ def super_sample_opencv(arr, factor,*, out=None, interpolation=cv2.INTER_NEAREST
     if out is None:
         out = np.zeros((arr.shape[0] * factor, arr.shape[1] * factor), dtype=arr.dtype)
 
-    cv2.resize(arr, dst=out, dsize=out.shape[::-1], fx=2, fy=2, interpolation=interpolation)
+    res = cv2.resize(arr, dst=out, dsize=out.shape[::-1], fx=2, fy=2, interpolation=interpolation)
     return out
