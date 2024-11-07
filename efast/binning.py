@@ -215,16 +215,9 @@ def bin_to_grid_numpy(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_
     bin_idx_row = np.divide((lat - grid.lat[0]),  pixel_size, out=bin_idx_buf).astype(int)
     bin_idx_col = np.divide((lon - grid.lon[0]), pixel_size, out=bin_idx_buf).astype(int)
 
-    bin_idx = bin_idx_row * width
-    bin_idx += bin_idx_col
-
-
+    bin_idx = bin_idx_row * width + bin_idx_col
     
     bin_idx[(bin_idx_row < 0) | (bin_idx_row > height) | (bin_idx_col < 0) | (bin_idx_col > width)] = -1
-    #bin_idx[(bin_idx_row < 0)] = -1
-    #bin_idx[(bin_idx_row > height)] = -1
-    #bin_idx[(bin_idx_col < 0)] = -1
-    #bin_idx[(bin_idx_col > width)] = -1
 
     counts, _  = np.histogram(bin_idx, width * height, range=(0, width*height))
         
@@ -241,6 +234,7 @@ def bin_to_grid_numpy(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_
         else:
             sampled_data = data
 
+        # Promote datatype to avoid overflows
         hist, _ = np.histogram(bin_idx, range(width * height + 1), weights=sampled_data.astype(np.int32).reshape(-1), range=(0, width*height))
         means = np.divide(hist, counts, out=means)
         scaled_means = means.reshape(height, width) * SCALE_FACTOR
