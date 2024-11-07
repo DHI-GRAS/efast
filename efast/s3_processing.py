@@ -27,6 +27,7 @@ SOFTWARE.
 
 import os
 import re
+from pathlib import Path
 
 from datetime import datetime
 
@@ -180,7 +181,7 @@ def binning_s3(
                 string += f"{variable}_mean,"
         subset_node_id = graph.subset_op(binning_node_id, string[:-1])
         graph.write_op(subset_node_id, output_path)  # export as .tif
-        graph.run(snap_gpt_path, snap_parallelization, snap_memory)
+        graph.run(snap_gpt_path, snap_parallelization, snap_memory, graph_filename=str(Path(__file__).parent.parent / "test_temporary_data" / "s3_pre_snap_graph.xml"))
 
 
 def produce_median_composite(

@@ -25,6 +25,7 @@ dependencies = [
     "snap-graph @ git+https://github.com/DHI-GRAS/snap-graph",
     "creodias-finder @ git+https://github.com/DHI-GRAS/creodias-finder",
 
+    "opencv-python",
     "jupyterlab>=4.2.5",
     "openeo[localprocessing]>0.30",
     "openeo-processes-dask[implementations, ml]",
