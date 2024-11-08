@@ -13,9 +13,12 @@ __status__ = "Development"
 # ...
 
 
+from pathlib import Path
+
+
 class Profiling:
 
-    def __init__(self, output: str = None):
+    def __init__(self, output: str | Path | None = None):
         self._output = output
 
     def __enter__(self):
