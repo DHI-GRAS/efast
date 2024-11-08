@@ -1,36 +1,66 @@
 from collections import namedtuple
 from pathlib import Path
-from typing import Iterable, NamedTuple, Self, TypeVar
+from typing import Iterable,  Self
 import warnings
-from numpy.lib.stride_tricks import as_strided
 from numpy.typing import NDArray
 import xarray as xr
 import re
 import numpy as np
 from scipy import stats
 import shapely
-from scipy import ndimage
 import cv2
+import rasterio
+from rasterio.transform import Affine
 
+from efast.constants import S3L2SYNClassificationAerosolFlags, S3L2SYNCloudFlags
+
+
+FILL_VALUE = -10000 # TODO move
+
+CLOUD_FLAGS_COMBINED = (
+    S3L2SYNCloudFlags.CLOUD
+    | S3L2SYNCloudFlags.CLOUD_AMBIGUOUS
+    | S3L2SYNCloudFlags.CLOUD_MARGIN
+)
 
 def binning_s3_py(
     download_dir,
     binning_dir,
     footprint,
     s3_bands=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"],
-    max_zenith_angle=30,
-    crs="EPSG:4326",
+    **kwargs
 ):
     """
     TODO: "binning" might be a misnomer, as the function does more than just binning
     """
+    band_names = [*s3_bands, "CLOUD_flags", "SYN_flags"]
+    sen3_paths = list(download_dir.glob("*.SEN3"))
+    bbox = BBox.from_wkt(footprint)
+    grid = create_geogrid(bbox, num_rows=66792)
+    pixel_size = grid.lat[1] - grid.lat[0]
+    transform = Affine.translation(grid.lon[0], grid.lat[-1]) * Affine.scale(pixel_size, pixel_size)
 
-    # read required bands of sentinel-3 product
-    # reproject to EPSG 4326 (~300m grid), this step is likely unnecessary
-    # bin to SEA_grid
-    # reproject to EPSG 4326 (66xxx slices)
+    for i, sen3_path in enumerate(sen3_paths):
+        output_path = binning_dir / (sen3_path.stem + ".tif")
 
-    pass
+        prod = SynProduct(sen3_path, band_names=band_names)
+        ds = prod.read_bands()
+
+        cloud_no_land_mask = ((ds["CLOUD_flags"] & CLOUD_FLAGS_COMBINED.value) != 0) & (ds["SYN_flags"] & S3L2SYNClassificationAerosolFlags.SYN_land.value > 0)
+
+        for reflectance_band in s3_bands:
+             band_values = ds[reflectance_band].data
+             band_values[cloud_no_land_mask] = -10000
+             ds[reflectance_band] = (["lat", "lon"], band_values)
+
+
+        binned = bin_to_grid_numpy(ds, s3_bands, grid, super_sampling=2)
+
+        binned[binned < 0] = np.nan
+
+
+        with rasterio.open(output_path, "w", driver="GTiff", height=binned.shape[1], width=binned.shape[2], count=len(s3_bands), dtype=binned.dtype, crs="+proj=latlong", transform=transform, nodata=np.nan) as ds:
+            ds.write(binned[:, ::-1, :])
 
 
 def get_reflectance_filename(index: int):
@@ -220,15 +250,14 @@ def bin_to_grid_numpy(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_
     bin_idx[(bin_idx_row < 0) | (bin_idx_row > height) | (bin_idx_col < 0) | (bin_idx_col > width)] = -1
 
     counts, _  = np.histogram(bin_idx, width * height, range=(0, width*height))
-        
+      
     binned = []
     means = None
     sampled_data = None if super_sampling == 1 else np.zeros((lat2d.shape[0] * super_sampling, lat2d.shape[1] * super_sampling), dtype=np.int16)
 
-    FILL_VALUE = -10000 # TODO move
     for band in bands:
         data = ds[band].data
-        data[data == FILL_VALUE] = 0
+        #data[data == FILL_VALUE] = 0
         if super_sampling != 1:
             super_sample(data, super_sampling, out=sampled_data)
         else:
@@ -253,7 +282,6 @@ def create_geogrid(bbox: BBox, num_rows: int = 66792):
     # the last bin is between lon[-1] and lon[0] (antimeridian)
     lon = np.linspace(0, 360, num=num_rows * 2 + 1, endpoint=True) - 180
     lon = lon[1:]
-    # TODO return type with names to not confuse lat/lon
 
     # one lat bound before first bound that is larger than the bounding box min
     # TODO I can calculate lat_idx_min (and the others) directly 
