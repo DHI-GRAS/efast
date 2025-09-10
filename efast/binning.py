@@ -38,7 +38,7 @@ def binning_s3_py(
     bbox = BBox.from_wkt(footprint)
     grid = create_geogrid(bbox, num_rows=66792)
     pixel_size = grid.lat[1] - grid.lat[0]
-    transform = Affine.translation(grid.lon[0], grid.lat[-1]) * Affine.scale(pixel_size, pixel_size)
+    transform = Affine.translation(grid.lon[0], grid.lat[-1]) * Affine.scale(pixel_size, -pixel_size)
 
     for i, sen3_path in enumerate(sen3_paths):
         output_path = binning_dir / (sen3_path.stem + ".tif")
@@ -249,8 +249,8 @@ def bin_to_grid_numpy(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_
     
     bin_idx[(bin_idx_row < 0) | (bin_idx_row > height) | (bin_idx_col < 0) | (bin_idx_col > width)] = -1
 
-    counts, _  = np.histogram(bin_idx, width * height, range=(0, width*height))
-      
+    counts, _ = np.histogram(bin_idx, width * height, range=(0, width*height))
+
     binned = []
     means = None
     sampled_data = None if super_sampling == 1 else np.zeros((lat2d.shape[0] * super_sampling, lat2d.shape[1] * super_sampling), dtype=np.int16)
