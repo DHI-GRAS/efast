@@ -38,15 +38,18 @@ from enhancement_tools.time_measurement import Timer
 from creodias_finder import download, query
 from dateutil import rrule
 
+from efast import binning
 import efast.efast as efast
 import efast.s2_processing as s2
 import efast.s3_processing as s3
+
+SKIP_CREDENTIALS = True
 
 # CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
 def get_credentials_from_env():
     username = os.getenv("CDSE_USER")
     password = os.getenv("CDSE_PASSWORD")
-    if username is None or password is None:
+    if not SKIP_CREDENTIALS and (username is None or password is None):
         raise RuntimeError(
                 "Please make sure that CDSE credentials are available in the environment.\n"
                 "In order to proceed, set 'CDSE_USER' and 'CDSE_PASSWORD' accordingly."
@@ -130,7 +133,7 @@ def main(
     else:
         with open(DOWNLOAD_MARKER, "r") as fp:
             instrument = fp.readline()
-        logger.info(f"No downloads performed, because {DOWNLOAD_MARKER} exists. Read instrument '{instrument}' form marker file.")
+        logger.info(f"No downloads performed, because {DOWNLOAD_MARKER} exists. Read instrument '{instrument}' from marker file.")
 
     if not S2_PRE_MARKER.exists():
         logger.info("Performing pre-processing on Sentinel-2 images")
@@ -239,7 +242,18 @@ def s3_preprocessing(
     s3_timings: list[Tuple[str, float]] = []
     # Sentinel-3 pre-processing
     with Timer(dsc="S3 binning", logger=logger, add_to=s3_timings):
-        s3.binning_s3(
+#         s3.binning_s3(
+#             s3_download_dir,
+#             s3_binning_dir,
+#             footprint=footprint,
+#             s3_bands=s3_bands,
+#             instrument=instrument,
+#             aggregator="mean",
+#             snap_gpt_path=snap_gpt_path,
+#             snap_memory="24G",
+#             snap_parallelization=1,
+#         )
+        binning.binning_s3_py(
             s3_download_dir,
             s3_binning_dir,
             footprint=footprint,
