@@ -93,6 +93,7 @@ def main(
     mosaic_days: int,
     step: int,
     cdse_credentials: dict,
+    ratio: int,
     snap_gpt_path: str = "gpt",
 ):
     logger = logging.getLogger(__file__)
@@ -140,7 +141,7 @@ def main(
 
     
         with Timer(dsc="Sentinel-2 preprocessing", logger=logger) as t:
-            footprint = s2_preprocessing(s2_bands=s2_bands)
+            footprint = s2_preprocessing(s2_bands=s2_bands, ratio=ratio)
         timings.append(("Sentinel-2 pre-processing", t.elapsed))
 
         with open(S2_PRE_MARKER, "w") as fp:
@@ -175,7 +176,7 @@ def main(
 
 
     with Timer(dsc="EFAST", logger=logger) as t:
-        perform_efast(start_date=datetime.strptime(start_date, date_format), end_date=datetime.strptime(end_date, date_format), step=step)
+        perform_efast(start_date=datetime.strptime(start_date, date_format), end_date=datetime.strptime(end_date, date_format), step=step, ratio=ratio)
 
     timings.append(("EFAST", t.elapsed))
 
@@ -212,7 +213,7 @@ def download_files(
     return instrument
 
 
-def s2_preprocessing(*, s2_bands):
+def s2_preprocessing(*, s2_bands, ratio):
     # Sentinel-2 pre-processing
     s2.extract_mask_s2_bands(
         s2_download_dir,
@@ -221,6 +222,7 @@ def s2_preprocessing(*, s2_bands):
     )
     s2.distance_to_clouds(
         s2_processed_dir,
+        ratio=ratio,
     )
     footprint = s2.get_wkt_footprint(
         s2_processed_dir,
@@ -299,7 +301,7 @@ def s3_preprocessing(
         logger.info(f"[Timings] {t} ({desc})")
 
 
-def perform_efast(*, start_date, end_date, step):
+def perform_efast(*, start_date, end_date, step, ratio):
     # Perform EFAST fusion
     for date in rrule.rrule(
         rrule.DAILY,
@@ -315,6 +317,7 @@ def perform_efast(*, start_date, end_date, step):
             s2_processed_dir,
             fusion_dir,
             product="REFL",
+            ratio=ratio,
             max_days=100,
             minimum_acquisition_importance=0,
         )
@@ -373,13 +376,15 @@ if __name__ == "__main__":
     )  # Dahra EC tower
     parser.add_argument("--s3-sensor", default="SYN")
     parser.add_argument(
-        "--s3-bands", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
+        "--s3-bands", nargs="+", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
     )
-    parser.add_argument("--s2-bands", default=["B02", "B03", "B04", "B8A"])
+    parser.add_argument("--s2-bands", nargs="+", default=["B02", "B03", "B04", "B8A"])
     parser.add_argument("--mosaic-days", default=100)
-    parser.add_argument("--step", required=False, default=2)
+    parser.add_argument("--step", required=False, default=2, type=int)
     parser.add_argument("--cdse-credentials", default=CREDENTIALS)
     parser.add_argument("--snap-gpt-path", required=False, default="gpt")
+    parser.add_argument("--ratio", required=False, type=int, default=30)
+    #parser.add_argument("--sigma-doy", type=float, default=20)
 
     args = parser.parse_args()
 
@@ -394,4 +399,6 @@ if __name__ == "__main__":
         mosaic_days=args.mosaic_days,
         cdse_credentials=args.cdse_credentials,
         snap_gpt_path=args.snap_gpt_path,
+        ratio=args.ratio,
+        #sigma=args.sigma_doy,
     )
