@@ -379,7 +379,7 @@ if __name__ == "__main__":
         "--s3-bands", nargs="+", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
     )
     parser.add_argument("--s2-bands", nargs="+", default=["B02", "B03", "B04", "B8A"])
-    parser.add_argument("--mosaic-days", default=100)
+    parser.add_argument("--mosaic-days", type=int, default=100)
     parser.add_argument("--step", required=False, default=2, type=int)
     parser.add_argument("--cdse-credentials", default=CREDENTIALS)
     parser.add_argument("--snap-gpt-path", required=False, default="gpt")
