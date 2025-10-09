@@ -37,6 +37,7 @@ from pathlib import Path
 from enhancement_tools.time_measurement import Timer
 from creodias_finder import download, query
 from dateutil import rrule
+from tqdm import tqdm
 
 from efast import binning
 import efast.efast as efast
@@ -337,7 +338,7 @@ def download_from_cdse(
         productType="SY_2_SYN___",
         timeliness="NT",
     )
-    download.download_list(
+    download_list_safe(
         [result["id"] for result in results.values()],
         outdir=s3_download_dir,
         threads=1,
@@ -356,7 +357,7 @@ def download_from_cdse(
         geometry=aoi_geometry,
         productType="L2A",
     )
-    download.download_list(
+    download_list_safe(
         [result["id"] for result in results.values()],
         outdir=s2_download_dir,
         threads=3,
@@ -365,6 +366,25 @@ def download_from_cdse(
     for zip_file in s2_download_dir.glob("*.zip"):
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s2_download_dir)
+
+def download_list_safe(uids, username, password, outdir, threads=1, show_progress=True):
+    from creodias_finder.download import _get_token, download
+
+    if show_progress:
+        pbar = tqdm(total=len(uids), unit="files")
+
+    def _download(uid):
+        token = _get_token(username, password)
+        outfile = Path(outdir) / f"{uid}.zip"
+        download(
+            uid, username, password, outfile=outfile, show_progress=False, token=token
+        )
+        if show_progress:
+            pbar.update(1)
+        return uid, outfile
+
+    paths = [_download(u) for u in uids]
+    return paths
 
 
 if __name__ == "__main__":
