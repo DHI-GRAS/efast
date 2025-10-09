@@ -96,6 +96,7 @@ def main(
     cdse_credentials: dict,
     ratio: int,
     snap_gpt_path: str = "gpt",
+    use_snap_binning: bool = False,
 ):
     logger = logging.getLogger(__file__)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt='%Y-%m-%d %I:%M:%S')
@@ -163,6 +164,7 @@ def main(
                 snap_gpt_path=snap_gpt_path,
                 mosaic_days=mosaic_days,
                 step=step,
+                use_snap_binning=use_snap_binning,
             )
         timings.append(("Sentinel-3 pre-processing", t.elapsed))
 
@@ -239,34 +241,38 @@ def s3_preprocessing(
     snap_gpt_path,
     mosaic_days,
     step,
+    use_snap_binning: bool = False,
 ):
-
     logger = logging.getLogger(__file__)
     s3_timings: list[Tuple[str, float]] = []
     # Sentinel-3 pre-processing
     with Timer(dsc="S3 binning", logger=logger, add_to=s3_timings):
-#         s3.binning_s3(
-#             s3_download_dir,
-#             s3_binning_dir,
-#             footprint=footprint,
-#             s3_bands=s3_bands,
-#             instrument=instrument,
-#             aggregator="mean",
-#             snap_gpt_path=snap_gpt_path,
-#             snap_memory="24G",
-#             snap_parallelization=1,
-#         )
-        binning.binning_s3_py(
-            s3_download_dir,
-            s3_binning_dir,
-            footprint=footprint,
-            s3_bands=s3_bands,
-            instrument=instrument,
-            aggregator="mean",
-            snap_gpt_path=snap_gpt_path,
-            snap_memory="24G",
-            snap_parallelization=1,
-        )
+        if use_snap_binning:
+            logger.info("Using SNAP binning")
+            s3.binning_s3(
+                s3_download_dir,
+                s3_binning_dir,
+                footprint=footprint,
+                s3_bands=s3_bands,
+                instrument=instrument,
+                aggregator="mean",
+                snap_gpt_path=snap_gpt_path,
+                snap_memory="24G",
+                snap_parallelization=1,
+            )
+        else:
+            logger.info("Using built-in binning implementation")
+            binning.binning_s3_py(
+                s3_download_dir,
+                s3_binning_dir,
+                footprint=footprint,
+                s3_bands=s3_bands,
+                instrument=instrument,
+                aggregator="mean",
+                snap_gpt_path=snap_gpt_path,
+                snap_memory="24G",
+                snap_parallelization=1,
+            )
 
     with Timer(dsc="S3 median composite", logger=logger, add_to=s3_timings):
         s3.produce_median_composite(
@@ -404,6 +410,11 @@ if __name__ == "__main__":
     parser.add_argument("--cdse-credentials", default=CREDENTIALS)
     parser.add_argument("--snap-gpt-path", required=False, default="gpt")
     parser.add_argument("--ratio", required=False, type=int, default=30)
+    parser.add_argument(
+        "--use-snap-binning",
+        action="store_true",
+        help="Use SNAP for binning rather than built-in Python implementation"
+    )
     #parser.add_argument("--sigma-doy", type=float, default=20)
 
     args = parser.parse_args()
@@ -420,5 +431,6 @@ if __name__ == "__main__":
         cdse_credentials=args.cdse_credentials,
         snap_gpt_path=args.snap_gpt_path,
         ratio=args.ratio,
+        use_snap_binning=args.use_snap_binning,
         #sigma=args.sigma_doy,
     )
