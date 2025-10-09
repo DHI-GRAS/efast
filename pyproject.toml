@@ -22,15 +22,14 @@ dependencies = [
     "shapely",
     "astropy",
     "scikit-learn",
-    "snap-graph @ git+https://github.com/DHI-GRAS/snap-graph",
-    "creodias-finder @ git+https://github.com/DHI-GRAS/creodias-finder",
-
+    "snap-graph@git+https://github.com/DHI-GRAS/snap-graph",
+    "creodias-finder@git+https://github.com/DHI-GRAS/creodias-finder",
     "opencv-python",
     "jupyterlab>=4.2.5",
     "openeo[localprocessing]>0.30",
     "openeo-processes-dask[implementations, ml]",
     "netcdf4",
-    "enhancement_tools @ file://${PROJECT_ROOT}/../../enhancement_tools",
+    "enhancement_tools@git+ssh://git@github.com/bcdev/apex-enhancement-tools.git",
     "matplotlib",
 ]
 
