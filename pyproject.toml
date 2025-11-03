@@ -7,7 +7,7 @@ name = "efast"
 authors = [
     {name = "sa", email = "smth@email.com"},
 ]
-description = "OpenEO implementation of the efast Sentinel-2/3 fusion algorithm"
+description = "Implementation of the EFAST Sentinel-2/3 fusion algorithm"
 readme = "README.md"
 dynamic = ["version"]
 requires-python = ">= 3.10, < 3.12"
@@ -26,8 +26,6 @@ dependencies = [
     "creodias-finder@git+https://github.com/DHI-GRAS/creodias-finder",
     "opencv-python",
     "jupyterlab>=4.2.5",
-    "openeo[localprocessing]>0.30",
-    "openeo-processes-dask[implementations, ml]",
     "netcdf4",
     "enhancement_tools@git+ssh://git@github.com/bcdev/apex-enhancement-tools.git",
     "matplotlib",
