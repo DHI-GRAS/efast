@@ -29,6 +29,7 @@ dependencies = [
     "netcdf4",
     "enhancement_tools@git+ssh://git@github.com/bcdev/apex-enhancement-tools.git",
     "matplotlib",
+    "xarray",
 ]
 
 [project.optional-dependencies]
