@@ -29,7 +29,7 @@ def test_s3reader_dev():
 
 
 def test_create_geogrid():
-    lat, lon = create_geogrid(np.array([], dtype=np.float32))
+    lat, lon = create_geogrid(BBox(lat_min=0, lat_max=30, lon_min=0, lon_max=30))
     return True
 
 CLOUD_FLAGS_COMBINED = (
@@ -84,7 +84,7 @@ def test_bin_to_grid_zoomed_dev():
     ds = prod.read_bands()
     bbox = BBox.from_wkt(REGION)
     grid = create_geogrid(bbox, num_rows=66792)
-    res = bin_to_grid(ds, grid, super_sampling=2, interpolation_order=1)
+    res = bin_to_grid(ds, band_names, grid, super_sampling=2, interpolation_order=1)
     stats = res.statistic
 
     pixel_size = grid.lat[1] - grid.lat[0]
