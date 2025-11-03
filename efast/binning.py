@@ -203,8 +203,8 @@ def bin_to_grid(ds: xr.Dataset, bands: Iterable[str], grid: Grid,*, super_sampli
 
     #lat = ndimage.zoom(lat, super_sampling, order=interpolation_order).ravel()
     # lon = ndimage.zoom(lon, super_sampling, order=interpolation_order).ravel()
-    lat = super_sample_opencv(lat, super_sampling, interpolation=cv2.INTER_LINEAR)
-    lon = super_sample_opencv(lon, super_sampling, interpolation=cv2.INTER_LINEAR)
+    lat = super_sample_opencv(lat.to_numpy(), super_sampling, interpolation=cv2.INTER_LINEAR)
+    lon = super_sample_opencv(lon.to_numpy(), super_sampling, interpolation=cv2.INTER_LINEAR)
 
     binned = []
 
