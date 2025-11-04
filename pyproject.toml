@@ -23,7 +23,6 @@ dependencies = [
     "astropy",
     "snap-graph@git+https://github.com/DHI-GRAS/snap-graph",
     "creodias-finder@git+https://github.com/DHI-GRAS/creodias-finder",
-    "enhancement_tools@git+ssh://git@github.com/bcdev/apex-enhancement-tools.git",
 ]
 
 [project.optional-dependencies]

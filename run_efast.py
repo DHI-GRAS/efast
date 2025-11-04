@@ -34,7 +34,7 @@ from typing import Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from enhancement_tools.time_measurement import Timer
+from efast.time_measurement import Timer
 from creodias_finder import download, query
 from dateutil import rrule
 from tqdm import tqdm
