@@ -230,24 +230,6 @@ def distance_to_clouds(dir_s2, ratio=30, tolerance_percentage=0.05):
 
 
 
-def distance_to_clouds_in_memory(s2_hr, ratio=30, tolerance_percentage=0.05) -> np.ndarray:
-    """
-    Only the algorithm part of the `distance_to_clouds` function.
-    """
-    # Check if a Sentinel-3 pixel is complete
-    s2_block = (
-        (s2_hr == 0)
-        .reshape(s2_hr.shape[0] // ratio, ratio, s2_hr.shape[1] // ratio, ratio)
-        .mean(3)
-        .mean(1)
-    )
-
-    # Distance to cloud score
-    mask = s2_block < tolerance_percentage
-    distance_to_cloud = sp.ndimage.distance_transform_edt(mask)
-    distance_to_cloud = np.clip(distance_to_cloud, 0, 255)
-    return distance_to_cloud
-    
 
 def get_wkt_footprint(dir_s2, crs="EPSG:4326"):
     """

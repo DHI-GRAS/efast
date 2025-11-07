@@ -39,8 +39,3 @@ select = ["I"]
 [tool.ruff.lint.isort]
 # Use a single line between direct and from import.
 lines-between-types = 1
-
-[tool.uv]
-dev-dependencies = [
-    "pytest",
-]
