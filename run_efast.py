@@ -34,7 +34,6 @@ from typing import Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from efast.time_measurement import Timer
 from creodias_finder import download, query
 from dateutil import rrule
 from tqdm import tqdm
@@ -55,13 +54,11 @@ def get_credentials_from_env():
                 "In order to proceed, set 'CDSE_USER' and 'CDSE_PASSWORD' accordingly."
         )
 
-    print("loaded credentials for user", username)
     return {
         "username": username,
         "password": password
     }
 
-# TODO remove when downloads already happened
 # CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
 CREDENTIALS = get_credentials_from_env()
 
@@ -96,14 +93,8 @@ def main(
     ratio: int,
     snap_gpt_path: str = "gpt"
 ):
-    logger = logging.getLogger(__file__)
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt='%Y-%m-%d %I:%M:%S')
-    timings: list[Tuple[str, float]] = []
-
-    logger.info(f"Creating marker directory at {MARKERS.resolve()}")
     MARKERS.mkdir(exist_ok=True, parents=True)
 
-    logger.info(f"Creating output directories ({fusion_dir}, ...)")
     # Create directories if necessary
     for folder in [
         s3_download_dir,
@@ -119,7 +110,6 @@ def main(
         folder.mkdir(parents=True, exist_ok=True)
 
     if not DOWNLOAD_MARKER.exists():
-        logger.info(f"Downloading products from CDSE for AOI: {aoi_geometry}, between {start_date} and {end_date}")
         instrument = download_files(
             start_date=start_date,
             end_date=end_date,
@@ -127,61 +117,36 @@ def main(
             s3_sensor=s3_sensor,
             cdse_credentials=cdse_credentials,
         )
-        logger.info("Download complete")
         with open(DOWNLOAD_MARKER, "w") as fp:
-            logger.debug(f"Writing instrument {instrument} to {DOWNLOAD_MARKER}")
             fp.write(instrument)
     else:
         with open(DOWNLOAD_MARKER, "r") as fp:
             instrument = fp.readline()
-        logger.info(f"No downloads performed, because {DOWNLOAD_MARKER} exists. Read instrument '{instrument}' from marker file.")
 
     if not S2_PRE_MARKER.exists():
-        logger.info("Performing pre-processing on Sentinel-2 images")
-
-        with Timer(dsc="Sentinel-2 preprocessing", logger=logger) as t:
-            footprint = s2_preprocessing(s2_bands=s2_bands, ratio=ratio)
-        timings.append(("Sentinel-2 pre-processing", t.elapsed))
+        footprint = s2_preprocessing(s2_bands=s2_bands, ratio=ratio)
 
         with open(S2_PRE_MARKER, "w") as fp:
-            logger.debug(f"Writing footprint {footprint} to {S2_PRE_MARKER}")
             fp.write(footprint)
     else:
         with open(S2_PRE_MARKER, "r") as fp:
             footprint = fp.readline()
-        logger.info(f"No Sentinel-2 pre-processing performed, {S2_PRE_MARKER} exists. Read footprint {footprint} from marker file.")
 
     if not S3_PRE_MARKER.exists():
-        logger.info("Performing pre-processing on Sentinel-3 images")
-        with Timer(dsc="Sentinel-3 preprocessing", logger=logger) as t:
-            s3_preprocessing(
-                footprint=footprint,
-                s3_bands=s3_bands,
-                instrument=instrument,
-                snap_gpt_path=snap_gpt_path,
-                mosaic_days=mosaic_days,
-                step=step,
-            )
-        timings.append(("Sentinel-3 pre-processing", t.elapsed))
+        s3_preprocessing(
+            footprint=footprint,
+            s3_bands=s3_bands,
+            instrument=instrument,
+            snap_gpt_path=snap_gpt_path,
+            mosaic_days=mosaic_days,
+            step=step,
+        )
 
         with open(S3_PRE_MARKER, "w") as fp:
-            logger.debug(f"Creating marker file {S3_PRE_MARKER}.")
             fp.write("mark")
-    else:
-        logger.info(f"No Sentinel-3 pre-processing performed, {S3_PRE_MARKER} exists.")
 
     date_format = "%Y-%m-%d"
-    logger.info(f"Performing EFAST for {datetime.strptime(start_date, date_format)} to {datetime.strptime(end_date, date_format)}")
-
-
-    with Timer(dsc="EFAST", logger=logger) as t:
-        perform_efast(start_date=datetime.strptime(start_date, date_format), end_date=datetime.strptime(end_date, date_format), step=step, ratio=ratio)
-
-    timings.append(("EFAST", t.elapsed))
-
-    for desc, t in timings:
-        logger.info(f"[Timings] {t} ({desc})")
-    return timings
+    perform_efast(start_date=datetime.strptime(start_date, date_format), end_date=datetime.strptime(end_date, date_format), step=step, ratio=ratio)
 
 
 def download_files(
@@ -238,56 +203,40 @@ def s3_preprocessing(
     mosaic_days,
     step,
 ):
-    logger = logging.getLogger(__file__)
-    s3_timings: list[Tuple[str, float]] = []
     # Sentinel-3 pre-processing
-    with Timer(dsc="S3 binning", logger=logger, add_to=s3_timings):
-        logger.info("Binning S3 data with SNAP")
-        s3.binning_s3(
-            s3_download_dir,
-            s3_binning_dir,
-            footprint=footprint,
-            s3_bands=s3_bands,
-            instrument=instrument,
-            aggregator="mean",
-            snap_gpt_path=snap_gpt_path,
-            snap_memory="24G",
-            snap_parallelization=1,
-        )
-
-
-    with Timer(dsc="S3 median composite", logger=logger, add_to=s3_timings):
-        s3.produce_median_composite(
-            s3_binning_dir,
-            s3_composites_dir,
-            mosaic_days=mosaic_days,
-            step=step,
-            s3_bands=None,
-        )
-
-    with Timer(dsc="S3 smoothing", logger=logger, add_to=s3_timings):
-        s3.smoothing(
-            s3_composites_dir,
-            s3_blured_dir,
-            std=1,
-            preserve_nan=False,
-        )
-
-    with Timer(dsc="S3 reformat", logger=logger, add_to=s3_timings):
-        s3.reformat_s3(
-            s3_blured_dir,
-            s3_calibrated_dir,
-        )
-
-    with Timer(dsc="S3 reproject and crop", logger=logger, add_to=s3_timings):
-        s3.reproject_and_crop_s3(
-            s3_calibrated_dir,
-            s2_processed_dir,
-            s3_reprojected_dir,
-        )
-
-    for desc, t in s3_timings: 
-        logger.info(f"[Timings] {t} ({desc})")
+    s3.binning_s3(
+        s3_download_dir,
+        s3_binning_dir,
+        footprint=footprint,
+        s3_bands=s3_bands,
+        instrument=instrument,
+        aggregator="mean",
+        snap_gpt_path=snap_gpt_path,
+        snap_memory="24G",
+        snap_parallelization=1,
+    )
+    s3.produce_median_composite(
+        s3_binning_dir,
+        s3_composites_dir,
+        mosaic_days=mosaic_days,
+        step=step,
+        s3_bands=None,
+    )
+    s3.smoothing(
+        s3_composites_dir,
+        s3_blured_dir,
+        std=1,
+        preserve_nan=False,
+    )
+    s3.reformat_s3(
+        s3_blured_dir,
+        s3_calibrated_dir,
+    )
+    s3.reproject_and_crop_s3(
+        s3_calibrated_dir,
+        s2_processed_dir,
+        s3_reprojected_dir,
+    )
 
 
 def perform_efast(*, start_date, end_date, step, ratio):
@@ -298,8 +247,6 @@ def perform_efast(*, start_date, end_date, step, ratio):
         until=end_date - timedelta(step),
         interval=step,
     ):
-        logger = logging.getLogger(__name__)
-        logger.info(f"Performing efast for {date}")
         efast.fusion(
             date,
             s3_reprojected_dir,
@@ -333,7 +280,6 @@ def download_from_cdse(
         **credentials,
     )
     for zip_file in s3_download_dir.glob("*.zip"):
-        print(zip_file)
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s3_download_dir)
 
