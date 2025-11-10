@@ -28,9 +28,7 @@ SOFTWARE.
 import argparse
 import zipfile
 import os
-import logging
 
-from typing import Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 
