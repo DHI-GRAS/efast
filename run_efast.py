@@ -86,6 +86,7 @@ def main(
     mosaic_days: int,
     step: int,
     cdse_credentials: dict,
+    ratio: int,
     snap_gpt_path: str = "gpt",
 ):
     # Transform parameters
@@ -127,6 +128,7 @@ def main(
     )
     s2.distance_to_clouds(
         s2_processed_dir,
+        ratio=ratio,
     )
     footprint = s2.get_wkt_footprint(
         s2_processed_dir,
@@ -180,6 +182,7 @@ def main(
             s2_processed_dir,
             fusion_dir,
             product="REFL",
+            ratio=ratio,
             max_days=100,
             minimum_acquisition_importance=0,
         )
@@ -262,6 +265,7 @@ if __name__ == "__main__":
     parser.add_argument("--step", type=int, required=False, default=2)
     parser.add_argument("--cdse-credentials", default=CREDENTIALS)
     parser.add_argument("--snap-gpt-path", required=False, default="gpt")
+    parser.add_argument("--ratio", required=False, type=int, default=30)
 
     args = parser.parse_args()
 
@@ -275,5 +279,6 @@ if __name__ == "__main__":
         step=args.step,
         mosaic_days=args.mosaic_days,
         cdse_credentials=args.cdse_credentials,
+        ratio=args.ratio,
         snap_gpt_path=args.snap_gpt_path
     )
