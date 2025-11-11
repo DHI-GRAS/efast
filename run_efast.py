@@ -32,8 +32,9 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from creodias_finder import download, query
+from creodias_finder import query
 from dateutil import rrule
+from tqdm import tqdm
 
 import efast.efast as efast
 import efast.s2_processing as s2
@@ -200,7 +201,7 @@ def download_from_cdse(
                           instrument="SYNERGY",
                           productType="SY_2_SYN___",
                           timeliness="NT")
-    download.download_list([result['id'] for result in results.values()],
+    download_list_safe([result['id'] for result in results.values()],
                            outdir=s3_download_dir,
                            threads=3,
                            **credentials)
@@ -209,18 +210,42 @@ def download_from_cdse(
             zip_ref.extractall(s3_download_dir)
 
     # Then download Sentinel-2 L2A data
-    results = query.query('Sentinel2',
-                          start_date=start_date,
-                          end_date=end_date,
-                          geometry=aoi_geometry,
-                          productType="L2A")
-    download.download_list([result['id'] for result in results.values()],
-                           outdir=s2_download_dir,
-                           threads=3,
-                           **credentials)
+    results = query.query(
+        'Sentinel2',
+        start_date=start_date,
+        end_date=end_date,
+        geometry=aoi_geometry,
+        productType="L2A",
+    )
+    download_list_safe(
+        [result['id'] for result in results.values()],
+        outdir=s2_download_dir,
+        threads=3,
+        **credentials,
+    )
     for zip_file in s2_download_dir.glob("*.zip"):
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s2_download_dir)
+
+
+def download_list_safe(uids, username, password, outdir, threads=1, show_progress=True):
+    from creodias_finder.download import _get_token, download
+
+    if show_progress:
+        pbar = tqdm(total=len(uids), unit="files")
+
+    def _download(uid):
+        token = _get_token(username, password)
+        outfile = Path(outdir) / f"{uid}.zip"
+        download(
+            uid, username, password, outfile=outfile, show_progress=False, token=token
+        )
+        if show_progress:
+            pbar.update(1)
+        return uid, outfile
+
+    paths = [_download(u) for u in uids]
+    return paths
 
 
 if __name__ == "__main__":
