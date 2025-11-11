@@ -108,7 +108,7 @@ def extract_mask_s2_bands(
             offset = int(offsets.get(band_id, 0))
             with rasterio.open(band_path) as src:
                 raw_data = src.read(1).astype("int16")
-                data = (raw_data - offset) / 10000
+                data = (raw_data + offset) / 10000
                 data[data < 0] = 0
                 data[mask] = 0
                 s2_image[i] = data
