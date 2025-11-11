@@ -27,6 +27,7 @@ SOFTWARE.
 
 import argparse
 import zipfile
+import os
 
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -39,10 +40,27 @@ import efast.s2_processing as s2
 import efast.s3_processing as s3
 
 # CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
-CREDENTIALS = {
-    "username": "my-cdse-email",
-    "password": "my-cdse-password"
-}
+def get_credentials_from_env():
+    """
+    Read CDSE credentials from the environment variables CDSE_USER and CDSE_PASSWORD.
+
+    Returns
+    -------
+    Dictionary containing "username" and "password" keys mapped to the values of the CDSE_USER and CDSE_PASSWORD
+    environment variables.
+
+    """
+    username = os.getenv("CDSE_USER")
+    password = os.getenv("CDSE_PASSWORD")
+
+    return {
+        "username": username,
+        "password": password
+    }
+
+
+CREDENTIALS = get_credentials_from_env()
+
 
 # Test parameters
 path = Path("./test_data").absolute()
