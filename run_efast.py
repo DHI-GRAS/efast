@@ -33,6 +33,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from creodias_finder import query
+from creodias_finder.download import _get_token, download
+
 from dateutil import rrule
 from tqdm import tqdm
 
@@ -232,8 +234,6 @@ def download_from_cdse(
 
 
 def download_list_safe(uids, username, password, outdir, threads=1, show_progress=True):
-    from creodias_finder.download import _get_token, download
-
     if show_progress:
         pbar = tqdm(total=len(uids), unit="files")
 
