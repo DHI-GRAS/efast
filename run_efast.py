@@ -27,22 +27,43 @@ SOFTWARE.
 
 import argparse
 import zipfile
+import os
 
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from creodias_finder import download, query
+from creodias_finder import query
+from creodias_finder.download import _get_token, download
+
 from dateutil import rrule
+from tqdm import tqdm
 
 import efast.efast as efast
 import efast.s2_processing as s2
 import efast.s3_processing as s3
 
 # CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
-CREDENTIALS = {
-    "username": "my-cdse-email",
-    "password": "my-cdse-password"
-}
+def get_credentials_from_env():
+    """
+    Read CDSE credentials from the environment variables CDSE_USER and CDSE_PASSWORD.
+
+    Returns
+    -------
+    Dictionary containing "username" and "password" keys mapped to the values of the CDSE_USER and CDSE_PASSWORD
+    environment variables.
+
+    """
+    username = os.getenv("CDSE_USER")
+    password = os.getenv("CDSE_PASSWORD")
+
+    return {
+        "username": username,
+        "password": password
+    }
+
+
+CREDENTIALS = get_credentials_from_env()
+
 
 # Test parameters
 path = Path("./test_data").absolute()
@@ -67,6 +88,7 @@ def main(
     mosaic_days: int,
     step: int,
     cdse_credentials: dict,
+    ratio: int,
     snap_gpt_path: str = "gpt",
 ):
     # Transform parameters
@@ -108,6 +130,7 @@ def main(
     )
     s2.distance_to_clouds(
         s2_processed_dir,
+        ratio=ratio,
     )
     footprint = s2.get_wkt_footprint(
         s2_processed_dir,
@@ -161,6 +184,7 @@ def main(
             s2_processed_dir,
             fusion_dir,
             product="REFL",
+            ratio=ratio,
             max_days=100,
             minimum_acquisition_importance=0,
         )
@@ -182,7 +206,7 @@ def download_from_cdse(
                           instrument="SYNERGY",
                           productType="SY_2_SYN___",
                           timeliness="NT")
-    download.download_list([result['id'] for result in results.values()],
+    download_list_safe([result['id'] for result in results.values()],
                            outdir=s3_download_dir,
                            threads=3,
                            **credentials)
@@ -191,18 +215,40 @@ def download_from_cdse(
             zip_ref.extractall(s3_download_dir)
 
     # Then download Sentinel-2 L2A data
-    results = query.query('Sentinel2',
-                          start_date=start_date,
-                          end_date=end_date,
-                          geometry=aoi_geometry,
-                          productType="L2A")
-    download.download_list([result['id'] for result in results.values()],
-                           outdir=s2_download_dir,
-                           threads=3,
-                           **credentials)
+    results = query.query(
+        'Sentinel2',
+        start_date=start_date,
+        end_date=end_date,
+        geometry=aoi_geometry,
+        productType="L2A",
+    )
+    download_list_safe(
+        [result['id'] for result in results.values()],
+        outdir=s2_download_dir,
+        threads=3,
+        **credentials,
+    )
     for zip_file in s2_download_dir.glob("*.zip"):
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s2_download_dir)
+
+
+def download_list_safe(uids, username, password, outdir, threads=1, show_progress=True):
+    if show_progress:
+        pbar = tqdm(total=len(uids), unit="files")
+
+    def _download(uid):
+        token = _get_token(username, password)
+        outfile = Path(outdir) / f"{uid}.zip"
+        download(
+            uid, username, password, outfile=outfile, show_progress=False, token=token
+        )
+        if show_progress:
+            pbar.update(1)
+        return uid, outfile
+
+    paths = [_download(u) for u in uids]
+    return paths
 
 
 if __name__ == "__main__":
@@ -212,13 +258,14 @@ if __name__ == "__main__":
     parser.add_argument("--aoi-geometry", default="POINT (-15.432283 15.402828)")  # Dahra EC tower
     parser.add_argument("--s3-sensor", default="SYN")
     parser.add_argument(
-        "--s3-bands", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
+        "--s3-bands", nargs="+", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
     )
-    parser.add_argument("--s2-bands", default=["B02", "B03", "B04", "B8A"])
-    parser.add_argument("--mosaic-days", default=100)
-    parser.add_argument("--step", required=False, default=2)
+    parser.add_argument("--s2-bands", nargs="+", default=["B02", "B03", "B04", "B8A"])
+    parser.add_argument("--mosaic-days", type=int, default=100)
+    parser.add_argument("--step", type=int, required=False, default=2)
     parser.add_argument("--cdse-credentials", default=CREDENTIALS)
     parser.add_argument("--snap-gpt-path", required=False, default="gpt")
+    parser.add_argument("--ratio", required=False, type=int, default=30)
 
     args = parser.parse_args()
 
@@ -232,5 +279,6 @@ if __name__ == "__main__":
         step=args.step,
         mosaic_days=args.mosaic_days,
         cdse_credentials=args.cdse_credentials,
+        ratio=args.ratio,
         snap_gpt_path=args.snap_gpt_path
     )

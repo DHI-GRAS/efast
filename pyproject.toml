@@ -7,9 +7,10 @@ name = "efast"
 authors = [
     {name = "sa", email = "smth@email.com"},
 ]
-description = "My package description"
+description = "Implementation of the EFAST Sentinel-2/3 fusion algorithm"
 readme = "README.md"
 dynamic = ["version"]
+requires-python = ">= 3.10, < 3.12"
 dependencies = [
     "python-dateutil",
     "numpy",
@@ -20,8 +21,8 @@ dependencies = [
     "pyproj",
     "shapely",
     "astropy",
-    "snap-graph @ git+https://github.com/DHI-GRAS/snap-graph",
-
+    "snap-graph@git+https://github.com/DHI-GRAS/snap-graph",
+    "creodias-finder@git+https://github.com/DHI-GRAS/creodias-finder",
 ]
 
 [project.optional-dependencies]

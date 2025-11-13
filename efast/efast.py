@@ -169,6 +169,9 @@ def fusion(
         )
 
     lr_values = np.zeros((len(t_s3), bands, lr_profile["height"], lr_profile["width"]))
+    for i, lr_path in enumerate(lr_paths):
+        with rasterio.open(lr_path) as src:
+            lr_values[i, :, :, :] = src.read(window=lr_window)
 
     # Prepare low-resolution rasters
     lr_i = np.nan * np.zeros(

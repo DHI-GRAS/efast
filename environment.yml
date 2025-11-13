@@ -1,0 +1,8 @@
+name: efast
+channels:
+  - conda-forge
+dependencies:
+  - python >=3.10,<3.12
+  - gdal
+# Remaining dependencies are listed in pyproject.toml
+# and can be installed with pip.
