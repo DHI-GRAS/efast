@@ -26,21 +26,21 @@ SOFTWARE.
 """
 
 import argparse
-import zipfile
 import os
+import zipfile
 
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from creodias_finder import query
 from creodias_finder.download import _get_token, download
-
 from dateutil import rrule
 from tqdm import tqdm
 
 import efast.efast as efast
 import efast.s2_processing as s2
 import efast.s3_processing as s3
+
 
 # CDSE credentials to download Sentinel-2 and Sentinel-3 imagery
 def get_credentials_from_env():
