@@ -21,7 +21,7 @@ dependencies = [
     "pyproj",
     "shapely",
     "astropy",
-    "snap-graph@git+https://github.com/DHI-GRAS/snap-graph",
+    "snap-graph@git+https://github.com/DHI-GRAS/snap-graph@v0.1.0",
     "creodias-finder@git+https://github.com/DHI-GRAS/creodias-finder",
 ]
 
