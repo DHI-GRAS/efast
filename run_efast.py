@@ -56,10 +56,7 @@ def get_credentials_from_env():
     username = os.getenv("CDSE_USER")
     password = os.getenv("CDSE_PASSWORD")
 
-    return {
-        "username": username,
-        "password": password
-    }
+    return {"username": username, "password": password}
 
 
 CREDENTIALS = get_credentials_from_env()
@@ -90,6 +87,9 @@ def main(
     cdse_credentials: dict,
     ratio: int,
     snap_gpt_path: str = "gpt",
+    skip_download=False,
+    skip_s2_pre_processing=False,
+    skip_s3_pre_processing=False,
 ):
     # Transform parameters
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
@@ -114,62 +114,66 @@ def main(
         folder.mkdir(parents=True, exist_ok=True)
 
     # Download the data from CDSE
-    download_from_cdse(
-        start_date,
-        end_date,
-        aoi_geometry,
-        s2_download_dir,
-        s3_download_dir,
-        cdse_credentials)
+    if not skip_download:
+        download_from_cdse(
+            start_date,
+            end_date,
+            aoi_geometry,
+            s2_download_dir,
+            s3_download_dir,
+            cdse_credentials,
+        )
 
     # Sentinel-2 pre-processing
-    s2.extract_mask_s2_bands(
-        s2_download_dir,
-        s2_processed_dir,
-        bands=s2_bands,
-    )
-    s2.distance_to_clouds(
-        s2_processed_dir,
-        ratio=ratio,
-    )
+    if not skip_s2_pre_processing:
+        s2.extract_mask_s2_bands(
+            s2_download_dir,
+            s2_processed_dir,
+            bands=s2_bands,
+        )
+        s2.distance_to_clouds(
+            s2_processed_dir,
+            ratio=ratio,
+        )
     footprint = s2.get_wkt_footprint(
         s2_processed_dir,
     )
 
     # Sentinel-3 pre-processing
-    s3.binning_s3(
-        s3_download_dir,
-        s3_binning_dir,
-        footprint=footprint,
-        s3_bands=s3_bands,
-        instrument=instrument,
-        aggregator="mean",
-        snap_gpt_path=snap_gpt_path,
-        snap_memory="24G",
-        snap_parallelization=1,
-    )
-    s3.produce_median_composite(
-        s3_binning_dir,
-        s3_composites_dir,
-        mosaic_days=mosaic_days,
-        step=step,
-        s3_bands=None,
-    )
-    s3.smoothing(
-        s3_composites_dir,
-        s3_blured_dir,
-        std=1,
-        preserve_nan=False,
-    )
-    s3.reformat_s3(
-        s3_blured_dir,
-        s3_calibrated_dir,
-    )
-    s3.reproject_and_crop_s3(
-        s3_calibrated_dir,
-        s2_processed_dir,
-        s3_reprojected_dir,
-    )
+    if not skip_s3_pre_processing:
+        s3.binning_s3(
+            s3_download_dir,
+            s3_binning_dir,
+            footprint=footprint,
+            s3_bands=s3_bands,
+            instrument=instrument,
+            aggregator="mean",
+            snap_gpt_path=snap_gpt_path,
+            snap_memory="24G",
+            snap_parallelization=1,
+        )
+        s3.produce_median_composite(
+            s3_binning_dir,
+            s3_composites_dir,
+            mosaic_days=mosaic_days,
+            step=step,
+            s3_bands=None,
+        )
+        s3.smoothing(
+            s3_composites_dir,
+            s3_blured_dir,
+            std=1,
+            preserve_nan=False,
+        )
+        s3.reformat_s3(
+            s3_blured_dir,
+            s3_calibrated_dir,
+        )
+        s3.reproject_and_crop_s3(
+            s3_calibrated_dir,
+            s2_processed_dir,
+            s3_reprojected_dir,
+        )
 
     # Perform EFAST fusion
     for date in rrule.rrule(
@@ -191,39 +195,38 @@ def main(
 
 
 def download_from_cdse(
-        start_date,
-        end_date,
-        aoi_geometry,
-        s2_download_dir,
-        s3_download_dir,
-        credentials):
-
+    start_date, end_date, aoi_geometry, s2_download_dir, s3_download_dir, credentials
+):
     # First download Sentinel-3 SYN data
-    results = query.query('Sentinel3',
-                          start_date=start_date,
-                          end_date=end_date,
-                          geometry=aoi_geometry,
-                          instrument="SYNERGY",
-                          productType="SY_2_SYN___",
-                          timeliness="NT")
-    download_list_safe([result['id'] for result in results.values()],
-                           outdir=s3_download_dir,
-                           threads=3,
-                           **credentials)
+    results = query.query(
+        "Sentinel3",
+        start_date=start_date,
+        end_date=end_date,
+        geometry=aoi_geometry,
+        instrument="SYNERGY",
+        productType="SY_2_SYN___",
+        timeliness="NT",
+    )
+    download_list_safe(
+        [result["id"] for result in results.values()],
+        outdir=s3_download_dir,
+        threads=3,
+        **credentials,
+    )
     for zip_file in s3_download_dir.glob("*.zip"):
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(s3_download_dir)
 
     # Then download Sentinel-2 L2A data
     results = query.query(
-        'Sentinel2',
+        "Sentinel2",
         start_date=start_date,
         end_date=end_date,
         geometry=aoi_geometry,
         productType="L2A",
     )
     download_list_safe(
-        [result['id'] for result in results.values()],
+        [result["id"] for result in results.values()],
         outdir=s2_download_dir,
         threads=3,
         **credentials,
@@ -255,10 +258,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--start-date", default="2023-09-11")
     parser.add_argument("--end-date", default="2023-09-21")
-    parser.add_argument("--aoi-geometry", default="POINT (-15.432283 15.402828)")  # Dahra EC tower
+    parser.add_argument(
+        "--aoi-geometry", default="POINT (-15.432283 15.402828)"
+    )  # Dahra EC tower
     parser.add_argument("--s3-sensor", default="SYN")
     parser.add_argument(
-        "--s3-bands", nargs="+", default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"]
+        "--s3-bands",
+        nargs="+",
+        default=["SDR_Oa04", "SDR_Oa06", "SDR_Oa08", "SDR_Oa17"],
     )
     parser.add_argument("--s2-bands", nargs="+", default=["B02", "B03", "B04", "B8A"])
     parser.add_argument("--mosaic-days", type=int, default=100)
@@ -266,6 +273,9 @@ if __name__ == "__main__":
     parser.add_argument("--cdse-credentials", default=CREDENTIALS)
     parser.add_argument("--snap-gpt-path", required=False, default="gpt")
     parser.add_argument("--ratio", required=False, type=int, default=30)
+    parser.add_argument("--skip-download", action="store_true")
+    parser.add_argument("--skip-s2-pre-processing", action="store_true")
+    parser.add_argument("--skip-s3-pre-processing", action="store_true")
 
     args = parser.parse_args()
 
@@ -280,5 +290,8 @@ if __name__ == "__main__":
         mosaic_days=args.mosaic_days,
         cdse_credentials=args.cdse_credentials,
         ratio=args.ratio,
-        snap_gpt_path=args.snap_gpt_path
+        snap_gpt_path=args.snap_gpt_path,
+        skip_download=args.skip_download,
+        skip_s2_pre_processing=args.skip_s2_pre_processing,
+        skip_s3_pre_processing=args.skip_s3_pre_processing,
     )
