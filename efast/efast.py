@@ -208,7 +208,7 @@ def fusion(
 
     # Compute the weights of each high-resolution image for every low-resolution pixel, temporal
     # times optical Gaussian (t)
-    wt_i = np.exp(-((t_s2 / sigma) ** 2))
+    wt_i = np.exp(-(t_s2**2) / (2 * sigma**2))
     # Ramp (distance) - 0 for 1 km away from a cloud, 1 for 10 km
     wo_i = (distance_to_cloud - 1) / D
     wo_i[wo_i < 0] = np.nan
