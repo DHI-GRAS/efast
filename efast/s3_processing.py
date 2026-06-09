@@ -43,6 +43,9 @@ from rasterio.vrt import WarpedVRT
 from snap_graph.snap_graph import SnapGraph
 from tqdm import tqdm
 
+# SYN L2 SDR bands are stored as reflectance × 10_000 (same convention as S2 L2A DN)
+SDR_DN_TO_REFLECTANCE = 1e-4
+
 
 def binning_s3(
     download_dir,
@@ -354,8 +357,10 @@ def reformat_s3(
     product: str, optional
         Product name, which should be in the filename and is used to select files for reformatting.
         Defaults to "composite".
-    scaling_factor : int, optional
+    scaling_factor : float, optional
         Factor by which to scale the Sentinel-3 images, default is 1.
+        Use :data:`SDR_DN_TO_REFLECTANCE` (``1e-4``) to convert SYN L2 SDR DN
+        values to 0–1 reflectance for fusion with scaled Sentinel-2 imagery.
 
     Returns
     -------
