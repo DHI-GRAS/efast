@@ -160,6 +160,12 @@ def distance_to_clouds(dir_s2, ratio=30, tolerance_percentage=0.05):
             s2_hr = src.read(1)
             s2_profile = src.profile
 
+        # Pad to a multiple of ``ratio`` so block aggregation can reshape cleanly
+        pad_h = (ratio - s2_hr.shape[0] % ratio) % ratio
+        pad_w = (ratio - s2_hr.shape[1] % ratio) % ratio
+        if pad_h or pad_w:
+            s2_hr = np.pad(s2_hr, ((0, pad_h), (0, pad_w)), constant_values=0)
+
         # Check if a Sentinel-3 pixel is complete
         s2_block = (
             (s2_hr == 0)
